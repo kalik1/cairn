@@ -1,7 +1,8 @@
 /*
- * Managers: the active one and its standbys, the services they publish
- * (dashboard, Prometheus), and every mgr module with its state; enable or
- * disable a module behind a confirmation.
+ * Managers: the active one and its standbys, how many Rook runs (and
+ * changing it), the services they publish (dashboard, Prometheus), and
+ * every mgr module with its state; enable or disable a module behind a
+ * confirmation, or drop an entry Rook ignores from the CephCluster.
  */
 
 import Box from '@mui/material/Box';
@@ -12,6 +13,7 @@ import { mon } from '../../api/bridge';
 import { out, useCeph, useCephQuery } from '../../api/ceph';
 import { useKube } from '../../api/kube';
 import { cephOp } from '../../api/osdOps';
+import { ignoredModuleReason, runningCephVersion } from '../../model/daemonCounts';
 import { ago } from '../../model/format';
 import { cliText } from '../../model/health';
 import { Column, DataTable } from '../../ui/DataTable';
@@ -20,6 +22,7 @@ import { Action, Empty, KV, Mono, Notice, Panel, Tag } from '../../ui/kit';
 import { StateLabel } from '../../ui/Mark';
 import { StateTone } from '../../ui/tokens';
 import { CommandList, Hint, NodeLink, PodLink, useCephReason } from '../overview/common';
+import { MgrCountPanel, previewRemoveModule, useModulesEditReason } from './counts';
 
 const MODULE_TEXT: Record<string, string> = {
   alerts: 'Sends health alerts by e-mail.',
@@ -86,6 +89,9 @@ export function Mgr() {
   const [filter, setFilter] = React.useState('');
   const [err, setErr] = React.useState<string | null>(null);
   const rookMods = new Map<string, boolean>(((kube.cephCluster?.spec?.mgr?.modules ?? []) as any[]).map(x => [String(x?.name), x?.enabled !== false]));
+  const cephVersion = runningCephVersion(kube.cephCluster, c.core.versions);
+  const ignored = (name: string) => ignoredModuleReason(kube.cephCluster, name, cephVersion);
+  const modulesReason = useModulesEditReason();
   const rows: ModuleRow[] = React.useMemo(() => {
     if (!mods) return [];
     const always = new Set(names(mods.always_on_modules));
@@ -131,6 +137,16 @@ export function Mgr() {
     }
   };
 
+  const removeEntry = async (r: ModuleRow) => {
+    if (!kube.cephCluster) return;
+    setErr(null);
+    try {
+      await previewRemoveModule(kube.cephCluster, r.name, cephVersion, () => kube.refresh());
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  };
+
   const cols: Column<ModuleRow>[] = [
     { id: 'name', header: 'Module', cell: r => <Mono>{r.name}</Mono>, sort: r => r.name, width: 180 },
     {
@@ -151,9 +167,12 @@ export function Mgr() {
             <>
               {' '}
               {r.state === 'available' && rookMods.get(r.name) ? (
-                <Tag tone="warn" title="Rook did not enable it: the operator log says why (Rook 1.21 skips the rook module on Ceph 20, for example)">
-                  Listed in the CephCluster, not enabled
-                </Tag>
+                <>
+                  <Tag tone="warn" title={ignored(r.name) ?? 'Rook did not enable it: the operator log says why'}>
+                    Listed in the CephCluster, not enabled
+                  </Tag>
+                  {ignored(r.name) && <Hint sx={{ mt: 0.5 }}>{ignored(r.name)}</Hint>}
+                </>
               ) : (
                 <Tag title="spec.mgr.modules in the CephCluster">Set in the CephCluster</Tag>
               )}
@@ -168,7 +187,11 @@ export function Mgr() {
       header: '',
       align: 'right',
       cell: r =>
-        r.state === 'always' ? (
+        ignored(r.name) && r.state !== 'enabled' ? (
+          <Action onClick={() => removeEntry(r)} reason={modulesReason}>
+            Remove from the CephCluster
+          </Action>
+        ) : r.state === 'always' ? (
           <Hint>Cannot be disabled</Hint>
         ) : r.state === 'enabled' ? (
           <Action onClick={() => toggle(r, false)} reason={reason}>
@@ -188,8 +211,8 @@ export function Mgr() {
         <Panel title="Managers" icon="mdi:account-tie-outline">
           {m && !m.standbys.length && (
             <Notice tone="warn" sx={{ mb: 1.5 }} title="No standby">
-              If mgr.{m.active} fails, statistics, metrics and the autoscaler stop until Kubernetes restarts it. Run two managers (spec.mgr.count: 2 in
-              the CephCluster).
+              If mgr.{m.active} stops, metrics, the dashboard, progress events, the PG autoscaler and the balancer stop until it is back. Run
+              two managers: choose 2 under How many managers.
             </Notice>
           )}
           <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
@@ -216,7 +239,9 @@ export function Mgr() {
           </Box>
           {!m && <Hint>Reading the manager map…</Hint>}
         </Panel>
-        <Panel title="Services" icon="mdi:web">
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+          <MgrCountPanel />
+          <Panel title="Services" icon="mdi:web">
           {services.length === 0 ? (
             <Hint>The managers publish no service.</Hint>
           ) : (
@@ -230,7 +255,8 @@ export function Mgr() {
             />
           )}
           <Hint sx={{ mt: 1 }}>These are addresses inside the cluster network: they open only from where the pod network is reachable.</Hint>
-        </Panel>
+          </Panel>
+        </Box>
       </Box>
       <Panel
         title="Modules"

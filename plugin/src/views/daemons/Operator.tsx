@@ -12,7 +12,7 @@ import { Obj } from '../../model/types';
 import { Column, DataTable } from '../../ui/DataTable';
 import { Action, Empty, KV, Mono, Notice, Panel, When } from '../../ui/kit';
 import { StateLabel } from '../../ui/Mark';
-import { Hint, NodeLink, PodLink } from '../overview/common';
+import { Hint, NodeLink, PodLink, ViewLink } from '../overview/common';
 import { podImage, podState, restarts } from './pods';
 import { useOperator } from './useOperator';
 
@@ -112,8 +112,24 @@ export function Operator() {
                   ['Generation', `${s.generation}, observed ${s.observedGeneration || '—'}`],
                   ['Ceph version', s.cephVersion || '—'],
                   ['Ceph image', <Mono key="i">{s.specImage || s.image || '—'}</Mono>],
-                  ['Monitors wanted', String(cc.spec?.mon?.count ?? '—') + (cc.spec?.mon?.allowMultiplePerNode ? ', several per node allowed' : ', one per node')],
-                  ['Managers wanted', String(cc.spec?.mgr?.count ?? 1)],
+                  [
+                    'Monitors wanted',
+                    <span key="mon">
+                      {String(cc.spec?.mon?.count ?? 3) + (cc.spec?.mon?.allowMultiplePerNode ? ', several per node allowed' : ', one per node')}{' '}
+                      <ViewLink view="daemons" a="mons">
+                        Change
+                      </ViewLink>
+                    </span>,
+                  ],
+                  [
+                    'Managers wanted',
+                    <span key="mgr">
+                      {String(cc.spec?.mgr?.count ?? 1)}{' '}
+                      <ViewLink view="daemons" a="mgr">
+                        Change
+                      </ViewLink>
+                    </span>,
+                  ],
                   ['Crash collector', crashCollectorDisabled(cc) ? 'Off (spec.crashCollector.disable)' : 'On'],
                   ['Data directory', <Mono key="dd">{cc.spec?.dataDirHostPath ?? '—'}</Mono>],
                   ['Last health check', <When key="h" at={cc.status?.ceph?.lastChecked} />],

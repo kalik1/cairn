@@ -1,6 +1,7 @@
 /*
  * Monitors: the quorum, each monitor's rank, role, address, pod, node and
- * version, the cephx ciphers the monmap allows, and when a restart is safe.
+ * version, how many monitors Rook runs (and changing it), the cephx ciphers
+ * the monmap allows, and when a restart is safe.
  */
 
 import Box from '@mui/material/Box';
@@ -14,6 +15,7 @@ import { Column, DataTable } from '../../ui/DataTable';
 import { KV, Mono, Notice, Panel, Tag } from '../../ui/kit';
 import { StateLabel } from '../../ui/Mark';
 import { CommandList, Hint, NodeLink, PodLink, ViewLink } from '../overview/common';
+import { MonCountPanel } from './counts';
 import { monRestartSafety, podState, restarts } from './pods';
 
 interface MonMeta {
@@ -82,6 +84,7 @@ export function Mons() {
         <DataTable label="Monitors" rows={mons} columns={cols} rowKey={m => m.name} initialSort={{ id: 'rank', dir: 'asc' }} />
       </Panel>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2, alignItems: 'start' }}>
+        <MonCountPanel />
         <Panel title="Monitor map" icon="mdi:map-outline">
           <KV
             labelWidth={190}

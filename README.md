@@ -27,7 +27,7 @@ Cairn is separate from Hangar and works on any cluster with Rook.
 | Alerts and crashes | Cairn's own alerts (flags set, OSDs down/out or filling before Ceph's near-full, quorum, no standby mgr, crash collector off, CephCluster not Ready, operator down, pools without redundancy, autoscaler); crash reports with details, archive one or all |
 | Capacity and performance | Raw, per device class and per pool usable space after replication or erasure coding, with the near-full/backfill-full/full ratios; client throughput, IOPS, recovery and OSD latency charts |
 | Hosts and OSDs | Host shelves with a drive bay per OSD; OSD table (class, size, use, PGs, up/down, in/out, weights, latency, node, disk, device id, pod); OSD page with metadata, latency chart and its PGs; mark out/in, reweight, noout, scrub/deep-scrub, with ok-to-stop and safe-to-destroy checks first; the ten cluster flags explained, set and unset; guided host or OSD maintenance (noout, optional out, how to finish); add a disk or a node to the CephCluster storage spec, or change the device filter, with a preview |
-| Daemons | Monitors (quorum, leader, ranks, addresses, ciphers, when a restart is safe), managers (active, standbys, modules with enable/disable, services), daemon pods by type with versions and a mixed-version warning, the Rook operator (deployment, image, CephCluster phase, conditions, generation) and the Rook namespace's events |
+| Daemons | Monitors (quorum, leader, ranks, addresses, ciphers, when a restart is safe), managers (active, standbys, modules with enable/disable, services), daemon pods by type with versions and a mixed-version warning, the Rook operator (deployment, image, CephCluster phase, conditions, generation) and the Rook namespace's events; how many managers (1 or 2) and monitors (1, 3 or 5) Rook runs, changed in the CephCluster with a preview: counts the nodes cannot hold are off with the reason, a monitor change waits until every monitor is in quorum, fewer than three monitors on three or more nodes asks for the cluster name; drop a mgr module entry Rook ignores (`rook` on Ceph 20 and later) |
 | Pools | Every pool with usage, protection (copies or EC k+m), PGs and autoscaler, compression, quotas, CRUSH rule, live I/O, who manages it and the StorageClasses using it; a pool page with capacity strata, I/O charts, PG states, the Kubernetes side and its CephBlockPool; create (replicated or erasure coded, with an impact panel), change settings (with data-movement warnings), delete (refused while StorageClasses, volumes, images, trash or namespaces use it, and says which) |
 | Block (RBD) | Images per pool and RADOS namespace with provisioned and written size, features, parent, snapshots, watchers and the PV, PVC, pod or VM behind each (links to Hangar's VM page); trash (restore, remove, purge expired); an image page with snapshots (create, protect, unprotect, roll back when not in use, delete), clone, flatten, create image, grow, move to trash; CSI-managed images are protected from raw snapshots and offer a Kubernetes VolumeSnapshot instead |
 | File (CephFS) | File systems with MDS ranks and standbys, clients, pools, subvolume groups and subvolumes mapped to PVs; create a file system or a subvolume group through Rook; delete refused while volumes use it; says when the CephFS CSI driver is missing |
@@ -64,6 +64,18 @@ administrator role, give it to storage administrators only. Without it
 Cairn shows the Kubernetes side and says, where live data would be, which
 permission is missing. Controls a role does not allow are disabled with the
 reason.
+
+### Fields a platform operator owns
+
+Some platforms apply the CephCluster themselves with server-side apply.
+Cairn reads `metadata.managedFields`: a field that the k4all operator owns
+(field manager `k4all-operator`) is shown read-only with "Managed by
+k4all — change it in the k4all addon" and a link to the k4all plugin's
+settings when it is loaded, because the operator would put its own value
+back at its next apply. Today this covers the manager count, the monitor
+count and the mgr module list. Fields written by anyone else (kubectl,
+Rook, Headlamp, Cairn) stay editable, and on clusters without k4all
+everything is.
 
 Cairn runs Ceph commands in the Rook toolbox (`app=rook-ceph-tools`) when it
 runs, else in the Rook operator pod (Configuration → Cairn lets you pick).

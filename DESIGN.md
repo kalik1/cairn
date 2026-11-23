@@ -22,7 +22,7 @@ Cairn splits writes accordingly:
 
 | Change | How Cairn makes it |
 |---|---|
-| Pools, file systems, subvolume groups, object stores, users, buckets (OBC), CephClients, storage spec (disks, nodes), cephx key rotation, persistent health mutes, Rook-managed config | Edit the Rook custom resource (YAML diff preview, server-side dry run, Apply). Rook applies it to Ceph. |
+| Pools, file systems, subvolume groups, object stores, users, buckets (OBC), CephClients, storage spec (disks, nodes), manager and monitor counts, mgr module entries, cephx key rotation, persistent health mutes, Rook-managed config | Edit the Rook custom resource (YAML diff preview, server-side dry run, Apply). Rook applies it to Ceph. |
 | StorageClasses, VolumeSnapshotClasses, VolumeSnapshots | Kubernetes objects, same preview |
 | OSD out/in, reweight, flags, scrub, maintenance, health mute with a TTL, crash archive, runtime config (`config set/rm`), RBD snapshots/rollback/trash, image create/resize | Ceph commands (the bridge, below): runtime operations Rook does not model |
 
@@ -141,7 +141,9 @@ one word, the live stamp and refresh; below it the views.
   (host or OSDs) and adding disks or nodes to the storage spec
   (`model/clusterSpec.ts`).
 - **Daemons** (`/ceph/daemons/<tab>`): monitors, managers and modules, daemon
-  pods and versions, the Rook operator and events.
+  pods and versions, the Rook operator and events. The Monitors and Managers
+  tabs say how many daemons the CephCluster asks for and change it
+  (`model/daemonCounts.ts`, section 6).
 - **Pools** (`/ceph/pools`, `/ceph/pools/<pool>`): the cluster's raw capacity by
   pool, the pool table, the pool page with its capacity strata; create, edit and
   delete through CephBlockPool (`model/pools.ts`: spec builder, impact, delete
@@ -200,8 +202,9 @@ plugin/
                           objectOps, securityOps, k8sOps, configOps)
   src/model/              pure logic with unit tests: parse (Ceph JSON), format, history,
                           exec (channel framing), diff, health (check catalog), alerts, pg,
-                          osd, clusterSpec, pools, rbd, cephfs, object, cephx, storageclass,
-                          csi, config, events, badge; fixtures.sample.ts = real answers, anonymized
+                          osd, clusterSpec, daemonCounts, ownership (managedFields), pools,
+                          rbd, cephfs, object, cephx, storageclass, csi, config, events,
+                          badge; fixtures.sample.ts = real answers, anonymized
   src/ui/                 tokens, kit, Mark, DataTable, dialogs, ChangeDialog, charts, CairnMark
   src/views/              overview, osds, daemons, pools, rbd, cephfs, object, kubernetes,
                           security, config, activity
@@ -226,6 +229,32 @@ plugin/
 - Two mutes: Ceph's own (`health mute`, with a TTL, for "I know, stop telling
   me today") and Rook's persistent one (`spec.healthCheck.muteHealthWarning`,
   for a decision that must survive restarts and be visible in the CR).
+- Manager and monitor counts are `spec.mgr.count` and `spec.mon.count`, never
+  Ceph commands. Managers: 1 or 2 (Rook's limit); 2 needs two nodes that can
+  run one unless `mgr.allowMultiplePerNode`. Monitors: 1, 3 or 5, and the
+  current count if it is another; without `mon.allowMultiplePerNode` no more
+  than the nodes Rook can place one on (not cordoned, taints tolerated by
+  `placement.all`/`placement.mon`, required node affinity met). A monitor
+  change is offered only while every monitor in the monmap is in quorum and
+  the monmap already has the count the spec asks for: adding or removing a
+  monitor while one is out, or while Rook is still moving, can lose the
+  quorum. Fewer than three monitors on a cluster with three or more nodes
+  needs the cluster name typed. Each choice is listed with what it means;
+  the ones the cluster cannot take are disabled with the reason, not hidden.
+- A mgr module entry Rook ignores is offered for removal from the
+  CephCluster: Rook 1.21 disables the `rook` module on Ceph 20 (Tentacle) and
+  later whatever `spec.mgr.modules` says. The Ceph version is the one Rook
+  detected (`status.version`), else the oldest manager version.
+- One owner per field. Platforms that apply the CephCluster with server-side
+  apply (k4all) put their value back at their next apply, so a field whose
+  `metadata.managedFields` entry belongs to field manager `k4all-operator`
+  is shown read-only, with "Managed by k4all — change it in the k4all addon"
+  and a link to the k4all plugin's settings route when it is registered
+  (`model/ownership.ts`: the FieldsV1 walk, where an empty set above the
+  field means an atomic value owned whole and `.` alone owns only the
+  parent's existence). The check runs on the list copy for the control and
+  again on a fresh read before the preview. Other managers leave the field
+  editable; without k4all everything is.
 - cephx: the CVE-2025-30156 migration is offered as Rook spec changes
   (key generation bumps, then `allowedCiphers: [aes256k]`) behind a typed
   confirmation, with live status for every step. Cairn never rotates keys
