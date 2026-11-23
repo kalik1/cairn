@@ -5,7 +5,9 @@
 # (ghcr.io/gpillon/k4all-headlamp-plugin tag).
 #
 # This is the k4all integration (https://github.com/gpillon/k4all), for
-# k4all releases that do not install Cairn themselves. On any other
+# k4all releases that do not install Cairn themselves: before v2.7.0, or
+# with Rook installed by hand. From v2.7.0 k4all merges these lists with
+# its own by name and keeps its tag of the plugins it ships. On any other
 # cluster use headlamp-values.yaml.
 #
 #   kubectl patch clusterconfig k4all-cluster-config --type merge \

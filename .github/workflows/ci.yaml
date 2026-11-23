@@ -64,6 +64,19 @@ jobs:
             plugin/package.json
           if-no-files-found: error
 
+  bundles:
+    name: Cluster bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The file the release attaches for distributions (k4all).
+      - name: Build cairn-cluster.yaml
+        run: .github/scripts/cluster-bundles.sh "${RUNNER_TEMP}/bundles"
+
   image:
     name: Image builds (amd64, arm64)
     runs-on: ubuntu-latest

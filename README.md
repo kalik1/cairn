@@ -164,12 +164,18 @@ kubectl apply -f distribution/rbac.yaml
 
 See [Access](#access) for what each role gives.
 
+Each [GitHub Release](https://github.com/kalik1/cairn/releases) also
+carries these roles as `cairn-cluster.yaml`, for distributions that install
+them next to the plugin image of the same version.
+
 ### On k4all
 
-[k4all](https://github.com/gpillon/k4all) clusters configure Headlamp
-through their ClusterConfig, so the plugin survives k4all upgrades:
-[`distribution/k4all-headlamp-overrides.yaml`](https://github.com/kalik1/cairn/blob/main/distribution/k4all-headlamp-overrides.yaml)
-(for k4all releases that do not install Cairn themselves).
+[k4all](https://github.com/gpillon/k4all) v2.7.0 and later ship Cairn (the
+plugin and `cairn-cluster.yaml`) with the Rook they install, once their
+ClusterConfig can turn Rook on. Until then, or with Rook installed by hand,
+k4all clusters configure Headlamp through their ClusterConfig, so the plugin
+survives k4all upgrades:
+[`distribution/k4all-headlamp-overrides.yaml`](https://github.com/kalik1/cairn/blob/main/distribution/k4all-headlamp-overrides.yaml).
 
 ```bash
 kubectl patch clusterconfig k4all-cluster-config --type merge \
@@ -178,8 +184,10 @@ kubectl patch clusterconfig k4all-cluster-config --type merge \
 
 Helm lists replace, so the file repeats the k4all plugin's own
 initContainer, volume and mount (add Hangar's too if you run it): keep the
-tags in step with the k4all release. Headlamp must be `Managed` by k4all for
-the override to apply.
+tags in step with the k4all release. From k4all v2.7.0 the operator merges
+these lists with the release's by name instead, and keeps its own tag of the
+plugins it ships. Headlamp must be `Managed` by k4all for the override to
+apply.
 
 ## URLs
 
@@ -218,8 +226,9 @@ configuration; plain `vitest run` lacks it).
 2. Tag main `v<x.y.z>` and push the tag. The
    [release workflow](https://github.com/kalik1/cairn/blob/main/.github/workflows/release.yaml)
    checks that the tag matches the files, runs CI, pushes the image for
-   amd64 and arm64, publishes a GitHub Release with the tarball, its sha256
-   and its `artifacthub-pkg.yml`, and commits that metadata to
+   amd64 and arm64, publishes a GitHub Release with the tarball, its sha256,
+   its `artifacthub-pkg.yml` and `cairn-cluster.yaml`, and commits that
+   metadata to
    `artifacthub/cairn-headlamp-plugin/<x.y.z>/` on main for
    [Artifact Hub](https://artifacthub.io) (repository kind *Headlamp
    plugins*, URL `https://github.com/kalik1/cairn/artifacthub`).
