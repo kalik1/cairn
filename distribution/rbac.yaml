@@ -1,0 +1,100 @@
+# Roles for Cairn users other than cluster-admin.
+#
+#   cairn-viewer   sees what Kubernetes knows: Rook resources and their status
+#                  (health and capacity as Rook reports them), StorageClasses,
+#                  snapshot classes, volumes, CSI drivers, Rook pods and events.
+#                  No live Ceph state, no operations.
+#   cairn-editor   + creates, edits and deletes Rook resources (pools, file
+#                  systems, object stores, users, clients…), StorageClasses,
+#                  snapshot classes and VolumeSnapshots. Rook applies them to Ceph.
+#   cairn-admin    (a Role in the Rook namespace) + runs Ceph commands: Cairn
+#                  reads Ceph's live state and runs operations (OSD out/in,
+#                  flags, mutes, crashes, config, RBD snapshots…) with the Ceph
+#                  Python bindings in the Rook toolbox or operator pod, through
+#                  `pods/exec`. Exec there holds the Ceph admin keyring (and,
+#                  in the operator pod, the operator's service account): give
+#                  it to storage administrators only. Also reads Secrets of
+#                  that namespace (object store user keys, shown on request).
+#
+# Bind cairn-viewer and cairn-editor with a ClusterRoleBinding; bind
+# cairn-admin with a RoleBinding in the namespace of the CephCluster and of
+# the Rook operator (both rook-ceph by default), together with cairn-editor.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cairn-viewer
+  labels: {cairn.magesgate.com/role: viewer}
+rules:
+  - apiGroups: [ceph.rook.io, objectbucket.io, csi.ceph.io]
+    resources: ['*']
+    verbs: [get, list, watch]
+  - apiGroups: [storage.k8s.io]
+    resources: [storageclasses, csidrivers, csinodes, volumeattachments]
+    verbs: [get, list, watch]
+  - apiGroups: [snapshot.storage.k8s.io]
+    resources: [volumesnapshotclasses, volumesnapshots, volumesnapshotcontents]
+    verbs: [get, list, watch]
+  - apiGroups: ['']
+    resources: [nodes, namespaces, persistentvolumes, persistentvolumeclaims, pods, events, services]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, daemonsets, replicasets]
+    verbs: [get, list, watch]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, watch]
+  - apiGroups: [authorization.k8s.io]
+    resources: [selfsubjectaccessreviews]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cairn-editor
+  labels: {cairn.magesgate.com/role: editor}
+aggregationRule:
+  clusterRoleSelectors:
+    - matchLabels: {cairn.magesgate.com/role: viewer}
+    - matchLabels: {cairn.magesgate.com/part: editor}
+rules: []
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cairn-editor-rules
+  labels: {cairn.magesgate.com/part: editor}
+rules:
+  - apiGroups: [ceph.rook.io, objectbucket.io]
+    resources: ['*']
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [storage.k8s.io]
+    resources: [storageclasses]
+    verbs: [create, update, patch, delete]
+  - apiGroups: [snapshot.storage.k8s.io]
+    resources: [volumesnapshotclasses, volumesnapshots]
+    verbs: [create, update, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cairn-admin
+  labels: {cairn.magesgate.com/role: admin}
+rules:
+  # Ceph commands through the toolbox or the operator pod.
+  - apiGroups: ['']
+    resources: [pods]
+    verbs: [get, list, watch]
+  - apiGroups: ['']
+    resources: [pods/exec]
+    verbs: [create, get]
+  # Object store user keys, read only when someone clicks "Show keys".
+  - apiGroups: ['']
+    resources: [secrets]
+    verbs: [get]
+---
+# Example: storage administrators of the rook-ceph namespace.
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: RoleBinding
+# metadata: {name: cairn-admin, namespace: rook-ceph}
+# roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: cairn-admin}
+# subjects: [{kind: Group, name: storage-admins, apiGroup: rbac.authorization.k8s.io}]
