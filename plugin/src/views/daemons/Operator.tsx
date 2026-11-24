@@ -1,18 +1,22 @@
 /*
  * The Rook operator and what it says about the CephCluster: deployment,
  * pod and version; phase, message, conditions, generation; the Kubernetes
- * events of the Rook namespace, warnings first.
+ * events of the Rook namespace, warnings first. On k4all the Ceph image is
+ * k4all's (it moves with the Rook release k4all pins), shown read-only.
  */
 
 import Box from '@mui/material/Box';
 import React from 'react';
+import { useK4all } from '../../api/k4all';
 import { useKube } from '../../api/kube';
 import { ClusterCondition, clusterState, crashCollectorDisabled } from '../../model/clusterSpec';
+import { k4allOwns } from '../../model/ownership';
 import { Obj } from '../../model/types';
 import { Column, DataTable } from '../../ui/DataTable';
 import { Action, Empty, KV, Mono, Notice, Panel, When } from '../../ui/kit';
 import { StateLabel } from '../../ui/Mark';
 import { Hint, NodeLink, PodLink, ViewLink } from '../overview/common';
+import { K4allManaged } from './counts';
 import { podImage, podState, restarts } from './pods';
 import { useOperator } from './useOperator';
 
@@ -23,6 +27,7 @@ export function Operator() {
   const op = useOperator();
   const cc = kube.cephCluster;
   const s = clusterState(cc);
+  const k4allImage = k4allOwns(cc, 'spec.cephVersion.image', useK4all());
   const d = op.deployment;
   const pod = op.pods.find(p => podState(p).tone === 'ok') ?? op.pods[0];
   const img = pod ? podImage(pod) : d ? { image: d.spec?.template?.spec?.containers?.[0]?.image ?? '', tag: '' } : null;
@@ -111,7 +116,13 @@ export function Operator() {
                   ['Message', s.message || '—'],
                   ['Generation', `${s.generation}, observed ${s.observedGeneration || '—'}`],
                   ['Ceph version', s.cephVersion || '—'],
-                  ['Ceph image', <Mono key="i">{s.specImage || s.image || '—'}</Mono>],
+                  [
+                    'Ceph image',
+                    <Box key="i">
+                      <Mono>{s.specImage || s.image || '—'}</Mono>
+                      {k4allImage && <K4allManaged fields={['spec.cephVersion.image']} sx={{ mt: 1 }} />}
+                    </Box>,
+                  ],
                   [
                     'Monitors wanted',
                     <span key="mon">

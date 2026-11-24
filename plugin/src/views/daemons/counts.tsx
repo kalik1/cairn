@@ -4,7 +4,9 @@
  * the cluster cannot take now and why, and the change through the usual
  * preview (diff, server-side dry run, apply). Also the removal of a mgr
  * module entry that Rook ignores. A field the k4all operator owns is shown
- * read-only: k4all would put its own value back at its next apply.
+ * read-only: k4all would put its own value back at its next apply. Today
+ * k4all creates the CephCluster once (field manager k4all-operator-seed) and
+ * owns only its Ceph image; the checks stay for the fields it may own later.
  */
 
 import Box from '@mui/material/Box';
@@ -16,6 +18,7 @@ import Typography from '@mui/material/Typography';
 import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { useCeph } from '../../api/ceph';
+import { isK4all, useK4all } from '../../api/k4all';
 import { useKube } from '../../api/kube';
 import {
   CountOption,
@@ -33,7 +36,7 @@ import {
   setMonCount,
 } from '../../model/daemonCounts';
 import { plural } from '../../model/format';
-import { k4allOwnedFields } from '../../model/ownership';
+import { K4ALL_MANAGED, k4allOwnedFields } from '../../model/ownership';
 import { Obj } from '../../model/types';
 import { previewChange } from '../../ui/ChangeDialog';
 import { Action, Mono, Notice, Panel } from '../../ui/kit';
@@ -41,17 +44,29 @@ import { StateLabel } from '../../ui/Mark';
 import { useTokens } from '../../ui/useTokens';
 import { fresh, headlampUrl, Hint, useClusterEditReason } from '../overview/common';
 
-/** The words Cairn shows on a control whose field the k4all operator owns. */
-export const K4ALL_MANAGED = 'Managed by k4all — change it in the k4all addon';
+/**
+ * The k4all addon's storage settings (/k4all/settings/storage), when the
+ * k4all plugin is loaded: its settings route plus the page.
+ */
+export function k4allStorageUrl(): string | null {
+  const base = headlampUrl('k4all-settings', {});
+  return base && base !== '/' ? `${base.replace(/\/$/, '')}/storage` : null;
+}
 
-/** The k4all addon's settings page, when the k4all plugin is loaded. */
-function k4allSettingsUrl(): string | null {
-  return headlampUrl('k4all-settings', {}) || null;
+/** Of these CephCluster fields, the ones k4all owns now (none when k4all does not run the cluster). */
+function useK4allOwned(cc: Obj | null, paths: string[]): string[] {
+  const k4all = useK4all();
+  return k4all ? k4allOwnedFields(cc, paths) : [];
+}
+
+/** The same, read fresh before a change. */
+async function k4allOwnedNow(cc: Obj, paths: string[]): Promise<string[]> {
+  return (await isK4all()) ? k4allOwnedFields(cc, paths) : [];
 }
 
 /** Read-only note for fields the k4all operator owns, with a link to its addon. */
 export function K4allManaged({ fields, sx }: { fields: string[]; sx?: object }) {
-  const url = k4allSettingsUrl();
+  const url = k4allStorageUrl();
   return (
     <Notice tone="idle" icon="mdi:lock-outline" sx={sx} title={K4ALL_MANAGED}>
       The k4all operator applies <Mono>{fields.join(', ')}</Mono> to this CephCluster and would put its own value back after a change made here.{' '}
@@ -147,7 +162,7 @@ export function MgrCountPanel() {
   const [want, setWant] = React.useState(cur);
   const [err, setErr] = React.useState<string | null>(null);
   React.useEffect(() => setWant(cur), [cur]);
-  const owned = k4allOwnedFields(cc, ['spec.mgr.count']);
+  const owned = useK4allOwned(cc, ['spec.mgr.count']);
   const m = core.mgr;
   const running = m ? (m.active ? 1 : 0) + m.standbys.length : null;
   const chosen = options.find(o => o.value === want);
@@ -157,7 +172,7 @@ export function MgrCountPanel() {
     if (!cc) return;
     setErr(null);
     const now = await fresh(cc);
-    if (k4allOwnedFields(now, ['spec.mgr.count']).length) {
+    if ((await k4allOwnedNow(now, ['spec.mgr.count'])).length) {
       setErr(K4ALL_MANAGED);
       return;
     }
@@ -226,7 +241,7 @@ export function MonCountPanel() {
   const [want, setWant] = React.useState(cur);
   const [err, setErr] = React.useState<string | null>(null);
   React.useEffect(() => setWant(cur), [cur]);
-  const owned = k4allOwnedFields(cc, ['spec.mon.count']);
+  const owned = useK4allOwned(cc, ['spec.mon.count']);
   const chosen = options.find(o => o.value === want);
   const multi = !!cc?.spec?.mon?.allowMultiplePerNode;
   const off = !cc ? 'No CephCluster' : editReason ?? (owned.length ? K4ALL_MANAGED : null) ?? (want === cur ? null : chosen?.off ?? null);
@@ -235,7 +250,7 @@ export function MonCountPanel() {
     if (!cc) return;
     setErr(null);
     const now = await fresh(cc);
-    if (k4allOwnedFields(now, ['spec.mon.count']).length) {
+    if ((await k4allOwnedNow(now, ['spec.mon.count'])).length) {
       setErr(K4ALL_MANAGED);
       return;
     }
@@ -312,14 +327,15 @@ export function MonCountPanel() {
 export function useModulesEditReason(): string | null {
   const kube = useKube();
   const editReason = useClusterEditReason();
+  const owned = useK4allOwned(kube.cephCluster, ['spec.mgr.modules']);
   if (!kube.cephCluster) return 'No CephCluster';
-  return editReason ?? (k4allOwnedFields(kube.cephCluster, ['spec.mgr.modules']).length ? K4ALL_MANAGED : null);
+  return editReason ?? (owned.length ? K4ALL_MANAGED : null);
 }
 
 /** Preview the CephCluster without the module's entry in spec.mgr.modules. */
 export async function previewRemoveModule(cc: Obj, name: string, cephVersion: string, onDone?: () => void): Promise<void> {
   const now = await fresh(cc);
-  if (k4allOwnedFields(now, ['spec.mgr.modules']).length) throw new Error(K4ALL_MANAGED);
+  if ((await k4allOwnedNow(now, ['spec.mgr.modules'])).length) throw new Error(K4ALL_MANAGED);
   const ch = removeMgrModule(now, name, cephVersion);
   if (ch.noop) throw new Error(ch.warnings[0] ?? 'Nothing changes.');
   await previewChange({

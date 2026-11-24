@@ -245,16 +245,23 @@ plugin/
   CephCluster: Rook 1.21 disables the `rook` module on Ceph 20 (Tentacle) and
   later whatever `spec.mgr.modules` says. The Ceph version is the one Rook
   detected (`status.version`), else the oldest manager version.
-- One owner per field. Platforms that apply the CephCluster with server-side
+- One owner per field (k4all spec §4 R9; `model/ownership.ts`, the same
+  file as Hangar's). Platforms that apply the CephCluster with server-side
   apply (k4all) put their value back at their next apply, so a field whose
   `metadata.managedFields` entry belongs to field manager `k4all-operator`
+  (exactly: `k4all-operator-seed`, the create-only seed, does not count)
   is shown read-only, with "Managed by k4all — change it in the k4all addon"
-  and a link to the k4all plugin's settings route when it is registered
-  (`model/ownership.ts`: the FieldsV1 walk, where an empty set above the
-  field means an atomic value owned whole and `.` alone owns only the
-  parent's existence). The check runs on the list copy for the control and
-  again on a fresh read before the preview. Other managers leave the field
-  editable; without k4all everything is.
+  and a link to the k4all plugin's storage settings
+  (`k4all-settings` route + `/storage`) when it is registered. The FieldsV1
+  walk: reaching the field covers it; an empty set above the field covers it
+  only when the live value there is a list or a scalar (owned whole), so an
+  applied empty struct owns none of its children; `.` alone owns only the
+  parent's existence. On k4all v2.7.0 the operator owns only
+  `spec.cephVersion.image` (D18), shown read-only on Daemons → Rook
+  operator. The check runs on the list copy for the control and again on a
+  fresh read before the preview. Other managers leave the field editable;
+  without k4all (discovery does not serve `k4all.magesgate.com`) everything
+  is.
 - cephx: the CVE-2025-30156 migration is offered as Rook spec changes
   (key generation bumps, then `allowedCiphers: [aes256k]`) behind a typed
   confirmation, with live status for every step. Cairn never rotates keys

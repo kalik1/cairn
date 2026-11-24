@@ -71,10 +71,14 @@ Some platforms apply the CephCluster themselves with server-side apply.
 Cairn reads `metadata.managedFields`: a field that the k4all operator owns
 (field manager `k4all-operator`) is shown read-only with "Managed by
 k4all — change it in the k4all addon" and a link to the k4all plugin's
-settings when it is loaded, because the operator would put its own value
-back at its next apply. Today this covers the manager count, the monitor
-count and the mgr module list. Fields written by anyone else (kubectl,
-Rook, Headlamp, Cairn) stay editable, and on clusters without k4all
+storage settings (`/k4all/settings/storage`) when it is loaded, because the
+operator would put its own value back at its next apply. On k4all v2.7.0
+that is the Ceph image (`spec.cephVersion.image`, which follows the Rook
+release k4all pins); the CephCluster k4all creates once (field manager
+`k4all-operator-seed`) is otherwise Cairn's, and the same check covers the
+manager count, the monitor count and the mgr module list. Fields written by
+anyone else (kubectl, Rook, Headlamp, Cairn) stay editable, and on clusters
+without k4all (its API group `k4all.magesgate.com` is not served)
 everything is.
 
 Cairn runs Ceph commands in the Rook toolbox (`app=rook-ceph-tools`) when it

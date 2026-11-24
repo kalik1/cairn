@@ -1,10 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
+import { K4ALL_MANAGED } from '../../model/ownership';
 import { Obj } from '../../model/types';
-import { K4ALL_MANAGED, MgrCountPanel, MonCountPanel } from './counts';
+import { MgrCountPanel, MonCountPanel } from './counts';
 
-const state: { cc: Obj | null; nodes: Obj[]; settings: string } = { cc: null, nodes: [], settings: '' };
+const state: { cc: Obj | null; nodes: Obj[]; settings: string; k4all: boolean } = { cc: null, nodes: [], settings: '', k4all: false };
+
+vi.mock('../../api/k4all', () => ({ useK4all: () => state.k4all, isK4all: async () => state.k4all }));
 
 vi.mock('../../api/kube', () => ({
   useKube: () => ({ cephCluster: state.cc, nodes: { items: state.nodes, loaded: true, error: null }, refresh: () => undefined }),
@@ -30,7 +33,7 @@ vi.mock('../../api/ceph', () => ({
 vi.mock('../overview/common', async orig => ({
   ...((await orig()) as object),
   useClusterEditReason: () => null,
-  headlampUrl: () => state.settings,
+  headlampUrl: (route: string) => (route === 'k4all-settings' ? state.settings : null),
 }));
 
 const node = (name: string): Obj => ({ apiVersion: 'v1', kind: 'Node', metadata: { name, labels: {} }, spec: {} });
@@ -67,6 +70,7 @@ describe('count panels', () => {
   beforeEach(() => {
     state.nodes = ['node-a.example.com', 'node-b.example.com', 'node-c.example.com'].map(node);
     state.settings = '';
+    state.k4all = true;
   });
 
   it('lets an admin change counts on a hand-made CephCluster, with 5 monitors off on three nodes', () => {
@@ -91,7 +95,7 @@ describe('count panels', () => {
     expect(screen.getByText('Needs a confirmation')).toBeTruthy();
   });
 
-  it('shows k4all-owned counts read-only, with a link to the k4all addon when it is loaded', () => {
+  it('shows k4all-owned counts read-only, with a link to the addon’s storage page when it is loaded', () => {
     state.cc = cephCluster(byK4all);
     state.settings = '/c/main/k4all/settings';
     render(
@@ -103,6 +107,41 @@ describe('count panels', () => {
     expect(screen.getAllByText(K4ALL_MANAGED)).toHaveLength(2);
     expect([...radios('Number of managers'), ...radios('Number of monitors')].every(r => r.disabled)).toBe(true);
     const links = screen.getAllByText('Open the k4all addon') as HTMLAnchorElement[];
-    expect(links[0].getAttribute('href')).toBe('/c/main/k4all/settings');
+    expect(links[0].getAttribute('href')).toBe('/c/main/k4all/settings/storage');
+  });
+
+  it('without the k4all addon loaded, says where to change it without a link', () => {
+    state.cc = cephCluster(byK4all);
+    render(
+      <MemoryRouter>
+        <MgrCountPanel />
+      </MemoryRouter>
+    );
+    expect(screen.getByText(K4ALL_MANAGED)).toBeTruthy();
+    expect(screen.queryByText('Open the k4all addon')).toBeNull();
+  });
+
+  it('leaves counts editable when k4all does not run the cluster, whatever managedFields say', () => {
+    state.cc = cephCluster(byK4all);
+    state.k4all = false;
+    render(
+      <MemoryRouter>
+        <MgrCountPanel />
+        <MonCountPanel />
+      </MemoryRouter>
+    );
+    expect(screen.queryByText(K4ALL_MANAGED)).toBeNull();
+    expect(radios('Number of managers').some(r => !r.disabled)).toBe(true);
+  });
+
+  it('leaves the seed’s counts editable (k4all-operator-seed is not an owner)', () => {
+    state.cc = cephCluster(byK4all.map(e => ({ ...e, manager: 'k4all-operator-seed', operation: 'Update' })));
+    render(
+      <MemoryRouter>
+        <MgrCountPanel />
+        <MonCountPanel />
+      </MemoryRouter>
+    );
+    expect(screen.queryByText(K4ALL_MANAGED)).toBeNull();
   });
 });
