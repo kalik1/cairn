@@ -125,7 +125,7 @@ config:
   pluginsDir: /headlamp/plugins
 initContainers:
   - name: cairn-plugin
-    image: ghcr.io/kalik1/cairn-headlamp-plugin:0.1.0
+    image: ghcr.io/kalik1/cairn-headlamp-plugin:0.1.1
     imagePullPolicy: IfNotPresent
     command: [sh, -c, "cp -R /plugins/cairn-headlamp-plugin/. /cairn-plugin/"]
     securityContext: {runAsNonRoot: true, runAsUser: 100, runAsGroup: 101, readOnlyRootFilesystem: true}
@@ -155,7 +155,7 @@ folder:
 
 ```bash
 mkdir -p "$PLUGINS_DIR/cairn-headlamp-plugin"
-tar -xzf cairn-headlamp-plugin-0.1.0.tar.gz --strip-components=1 \
+tar -xzf cairn-headlamp-plugin-0.1.1.tar.gz --strip-components=1 \
   -C "$PLUGINS_DIR/cairn-headlamp-plugin"
 ```
 
@@ -216,8 +216,8 @@ npm run lint && npm run tsc && npm test && npm run build   # dist/main.js
 npm run package                                            # the release tarball
 
 # the image, from the repository root
-podman build -f Containerfile --build-arg PLUGIN_VERSION=0.1.0 \
-  -t ghcr.io/kalik1/cairn-headlamp-plugin:0.1.0 .
+podman build -f Containerfile --build-arg PLUGIN_VERSION=0.1.1 \
+  -t ghcr.io/kalik1/cairn-headlamp-plugin:0.1.1 .
 ```
 
 `npm test` runs `headlamp-plugin test` (vitest with the plugin's own
