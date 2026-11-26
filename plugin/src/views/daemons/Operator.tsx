@@ -2,13 +2,17 @@
  * The Rook operator and what it says about the CephCluster: deployment,
  * pod and version; phase, message, conditions, generation; the Kubernetes
  * events of the Rook namespace, warnings first. On k4all the Ceph image is
- * k4all's (it moves with the Rook release k4all pins), shown read-only.
+ * k4all's (it moves with the Rook release k4all pins), shown read-only;
+ * who owns it comes from a GET of the CephCluster, as Headlamp's lists drop
+ * managedFields (api/managedFields.ts).
  */
 
 import Box from '@mui/material/Box';
 import React from 'react';
+import { pathOf } from '../../api/apply';
 import { useK4all } from '../../api/k4all';
 import { useKube } from '../../api/kube';
+import { useManagedFields } from '../../api/managedFields';
 import { ClusterCondition, clusterState, crashCollectorDisabled } from '../../model/clusterSpec';
 import { k4allOwns } from '../../model/ownership';
 import { Obj } from '../../model/types';
@@ -27,7 +31,9 @@ export function Operator() {
   const op = useOperator();
   const cc = kube.cephCluster;
   const s = clusterState(cc);
-  const k4allImage = k4allOwns(cc, 'spec.cephVersion.image', useK4all());
+  const k4all = useK4all();
+  const got = useManagedFields(cc, cc ? pathOf(cc) : null, k4all);
+  const k4allImage = k4allOwns(got, 'spec.cephVersion.image', k4all);
   const d = op.deployment;
   const pod = op.pods.find(p => podState(p).tone === 'ok') ?? op.pods[0];
   const img = pod ? podImage(pod) : d ? { image: d.spec?.template?.spec?.containers?.[0]?.image ?? '', tag: '' } : null;

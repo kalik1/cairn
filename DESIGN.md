@@ -258,8 +258,12 @@ plugin/
   applied empty struct owns none of its children; `.` alone owns only the
   parent's existence. On k4all v2.7.0 the operator owns only
   `spec.cephVersion.image` (D18), shown read-only on Daemons → Rook
-  operator. The check runs on the list copy for the control and again on a
-  fresh read before the preview. Other managers leave the field editable;
+  operator. Headlamp's list hooks delete `metadata.managedFields` from
+  every listed object, so the check never runs on the list copy: the
+  control reads a GET of the CephCluster (`api/managedFields.ts`, again
+  when the listed copy's resourceVersion changes), and the preview a fresh
+  read; when that read fails on k4all, no change is prepared (the list copy
+  cannot tell). Other managers leave the field editable;
   without k4all (discovery does not serve `k4all.magesgate.com`) everything
   is.
 - cephx: the CVE-2025-30156 migration is offered as Rook spec changes

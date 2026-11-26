@@ -4,7 +4,9 @@
  * the cluster cannot take now and why, and the change through the usual
  * preview (diff, server-side dry run, apply). Also the removal of a mgr
  * module entry that Rook ignores. A field the k4all operator owns is shown
- * read-only: k4all would put its own value back at its next apply. Today
+ * read-only: k4all would put its own value back at its next apply. Who owns
+ * a field comes from a GET of the CephCluster, never from the listed copy:
+ * Headlamp's lists drop managedFields (api/managedFields.ts). Today
  * k4all creates the CephCluster once (field manager k4all-operator-seed) and
  * owns only its Ceph image; the checks stay for the fields it may own later.
  */
@@ -17,9 +19,11 @@ import RadioGroup from '@mui/material/RadioGroup';
 import Typography from '@mui/material/Typography';
 import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
+import { pathOf } from '../../api/apply';
 import { useCeph } from '../../api/ceph';
 import { isK4all, useK4all } from '../../api/k4all';
 import { useKube } from '../../api/kube';
+import { useManagedFields } from '../../api/managedFields';
 import {
   CountOption,
   mgrCount,
@@ -53,15 +57,24 @@ export function k4allStorageUrl(): string | null {
   return base && base !== '/' ? `${base.replace(/\/$/, '')}/storage` : null;
 }
 
-/** Of these CephCluster fields, the ones k4all owns now (none when k4all does not run the cluster). */
+/** Of these CephCluster fields, the ones k4all owns now, from a GET of it (none when k4all does not run the cluster). */
 function useK4allOwned(cc: Obj | null, paths: string[]): string[] {
   const k4all = useK4all();
-  return k4all ? k4allOwnedFields(cc, paths) : [];
+  const got = useManagedFields(cc, cc ? pathOf(cc) : null, k4all);
+  return k4all ? k4allOwnedFields(got, paths) : [];
 }
 
-/** The same, read fresh before a change. */
-async function k4allOwnedNow(cc: Obj, paths: string[]): Promise<string[]> {
-  return (await isK4all()) ? k4allOwnedFields(cc, paths) : [];
+/**
+ * Why a change to these fields of `now` (the CephCluster read fresh) is
+ * not prepared, or null: k4all owns one, or `now` has no managedFields (the
+ * GET failed and fresh() gave back the listed copy, which cannot tell).
+ */
+async function k4allRefusal(now: Obj, paths: string[]): Promise<string | null> {
+  if (!(await isK4all())) return null;
+  if (!now.metadata.managedFields?.length) {
+    return `Cairn could not read the CephCluster just now, so it cannot tell whether k4all owns ${paths.join(', ')}. Try again.`;
+  }
+  return k4allOwnedFields(now, paths).length ? K4ALL_MANAGED : null;
 }
 
 /** Read-only note for fields the k4all operator owns, with a link to its addon. */
@@ -172,8 +185,9 @@ export function MgrCountPanel() {
     if (!cc) return;
     setErr(null);
     const now = await fresh(cc);
-    if ((await k4allOwnedNow(now, ['spec.mgr.count'])).length) {
-      setErr(K4ALL_MANAGED);
+    const refused = await k4allRefusal(now, ['spec.mgr.count']);
+    if (refused) {
+      setErr(refused);
       return;
     }
     try {
@@ -250,8 +264,9 @@ export function MonCountPanel() {
     if (!cc) return;
     setErr(null);
     const now = await fresh(cc);
-    if ((await k4allOwnedNow(now, ['spec.mon.count'])).length) {
-      setErr(K4ALL_MANAGED);
+    const refused = await k4allRefusal(now, ['spec.mon.count']);
+    if (refused) {
+      setErr(refused);
       return;
     }
     try {
@@ -335,7 +350,8 @@ export function useModulesEditReason(): string | null {
 /** Preview the CephCluster without the module's entry in spec.mgr.modules. */
 export async function previewRemoveModule(cc: Obj, name: string, cephVersion: string, onDone?: () => void): Promise<void> {
   const now = await fresh(cc);
-  if ((await k4allOwnedNow(now, ['spec.mgr.modules'])).length) throw new Error(K4ALL_MANAGED);
+  const refused = await k4allRefusal(now, ['spec.mgr.modules']);
+  if (refused) throw new Error(refused);
   const ch = removeMgrModule(now, name, cephVersion);
   if (ch.noop) throw new Error(ch.warnings[0] ?? 'Nothing changes.');
   await previewChange({

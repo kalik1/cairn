@@ -68,7 +68,8 @@ reason.
 ### Fields a platform operator owns
 
 Some platforms apply the CephCluster themselves with server-side apply.
-Cairn reads `metadata.managedFields`: a field that the k4all operator owns
+Cairn reads `metadata.managedFields` (from a GET of the CephCluster:
+Headlamp's lists leave them out): a field that the k4all operator owns
 (field manager `k4all-operator`) is shown read-only with "Managed by
 k4all — change it in the k4all addon" and a link to the k4all plugin's
 storage settings (`/k4all/settings/storage`) when it is loaded, because the
