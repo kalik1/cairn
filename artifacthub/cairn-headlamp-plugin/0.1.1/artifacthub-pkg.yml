@@ -1,0 +1,18 @@
+version: 0.1.1
+name: cairn-headlamp-plugin
+displayName: "Cairn"
+createdAt: "2026-11-26T20:21:20Z"
+description: "A Ceph storage console for Rook: health, hosts and OSDs, pools, RBD, CephFS, object storage, StorageClasses and cephx security."
+license: GPL-3.0-only
+homeURL: https://github.com/kalik1/cairn
+keywords: [ceph, rook, storage, rbd, cephfs, kubernetes]
+links:
+  - name: Source
+    url: https://github.com/kalik1/cairn
+  - name: Image (initContainer)
+    url: https://github.com/kalik1/cairn/pkgs/container/cairn-headlamp-plugin
+annotations:
+  headlamp/plugin/archive-url: "https://github.com/kalik1/cairn/releases/download/v0.1.1/cairn-headlamp-plugin-0.1.1.tar.gz"
+  headlamp/plugin/archive-checksum: "SHA256:11e60842c88a1b563955614fb8b7e96602ab9f99f96ad4c8e03460b977292a82"
+  headlamp/plugin/version-compat: ">=0.46"
+  headlamp/plugin/distro-compat: "in-cluster,web"
