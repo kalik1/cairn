@@ -36,28 +36,6 @@ import { useTokens } from '../../ui/useTokens';
 import { runClassWizard } from './ClassWizard';
 import { CLink, yesNo } from './parts';
 
-/** Created or deleted here, until the polled lists catch up. */
-function useOverlay(items: Obj[]) {
-  const [added, setAdded] = React.useState<Obj[]>([]);
-  const [removed, setRemoved] = React.useState<string[]>([]);
-  const names = new Set(items.map(i => i.metadata.name));
-  React.useEffect(() => {
-    setAdded(a => (a.some(x => names.has(x.metadata.name)) ? a.filter(x => !names.has(x.metadata.name)) : a));
-    setRemoved(r => (r.some(n => !names.has(n)) ? r.filter(n => names.has(n)) : r));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items]);
-  const merged = React.useMemo(
-    () => [...items.filter(i => !removed.includes(i.metadata.name)), ...added.filter(a => !names.has(a.metadata.name))],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [items, added, removed]
-  );
-  return {
-    items: merged,
-    add: (o: unknown) => o && typeof o === 'object' && (o as Obj).metadata && setAdded(a => [...a, o as Obj]),
-    remove: (name: string) => setRemoved(r => [...r, name]),
-  };
-}
-
 const STRATA = ['#8FA3AE', '#62788A', '#B5C3CA', '#4F6574', '#A1B2BC', '#788D9A'];
 
 export function ClassesTab() {
@@ -65,8 +43,9 @@ export function ClassesTab() {
   const ceph = useCeph();
   const t = useTokens();
   const csiObjs = useKGet('/apis/storage.k8s.io/v1/csidrivers', 60000);
-  const scs = useOverlay(kube.storageClasses.items);
-  const vscs = useOverlay(kube.snapshotClasses.items);
+  // Both lists are watched: a class created or deleted, here or elsewhere, shows at once.
+  const scs = kube.storageClasses.items;
+  const vscs = kube.snapshotClasses.items;
   const [selected, setSelected] = React.useState<string | null>(null);
   const canCreate = useCan({ verb: 'create', group: 'storage.k8s.io', resource: 'storageclasses' });
   const canDelete = useCan({ verb: 'delete', group: 'storage.k8s.io', resource: 'storageclasses' });
@@ -74,18 +53,18 @@ export function ClassesTab() {
   const canDeleteSnap = useCan({ verb: 'delete', group: 'snapshot.storage.k8s.io', resource: 'volumesnapshotclasses' });
 
   const pvs = kube.pvs.items;
-  const { rows, others } = React.useMemo(() => classRows(scs.items, pvs, vscs.items), [scs.items, pvs, vscs.items]);
-  const snaps = React.useMemo(() => snapshotRows(vscs.items, scs.items), [vscs.items, scs.items]);
+  const { rows, others } = React.useMemo(() => classRows(scs, pvs, vscs), [scs, pvs, vscs]);
+  const snaps = React.useMemo(() => snapshotRows(vscs, scs), [vscs, scs]);
   const ctx: WizardContext = {
     ns: kube.ns,
-    storageClasses: scs.items,
-    snapshotClasses: vscs.items,
+    storageClasses: scs,
+    snapshotClasses: vscs,
     drivers: kube.csiDrivers.items,
     csiDrivers: itemsOf(csiObjs),
     filesystems: kube.filesystems.items,
     blockPools: kube.blockPools.items,
   };
-  const openWizard = () => runClassWizard(ctx, { cephPools: ceph.core.pools }, o => (o as Obj)?.kind === 'VolumeSnapshotClass' ? vscs.add(o) : scs.add(o));
+  const openWizard = () => runClassWizard(ctx, { cephPools: ceph.core.pools });
 
   if (!kube.storageClasses.loaded) return <Loading label="Reading StorageClasses…" />;
   if (kube.storageClasses.forbidden)
@@ -235,17 +214,13 @@ export function ClassesTab() {
           snaps={snaps}
           canDelete={canDelete}
           canCreateSnap={canCreateSnap}
-          onDeleted={() => {
-            scs.remove(sel.name);
-            setSelected(null);
-          }}
-          onSnapCreated={o => vscs.add(o)}
+          onDeleted={() => setSelected(null)}
           onClose={() => setSelected(null)}
         />
       )}
       {!sel && rows.length > 0 && <Typography sx={{ fontSize: 13, color: t.muted, mt: -1 }}>Select a class to see its parameters, its volumes and its snapshot classes.</Typography>}
 
-      <SnapshotClasses rows={snaps} canDelete={canDeleteSnap} onDeleted={n => vscs.remove(n)} />
+      <SnapshotClasses rows={snaps} canDelete={canDeleteSnap} />
     </>
   );
 }
@@ -268,7 +243,6 @@ function ClassDetail({
   canDelete,
   canCreateSnap,
   onDeleted,
-  onSnapCreated,
   onClose,
 }: {
   row: ClassRow;
@@ -278,7 +252,6 @@ function ClassDetail({
   canDelete: boolean;
   canCreateSnap: boolean;
   onDeleted: () => void;
-  onSnapCreated: (o: unknown) => void;
   onClose: () => void;
 }) {
   const t = useTokens();
@@ -312,7 +285,6 @@ function ClassDetail({
       action: 'Create snapshot class',
       consequences: [`VolumeSnapshots of ${row.name} volumes can name it; each is a Ceph snapshot made by ${row.provisioner}.`],
       target: `volumesnapshotclass ${vsc.metadata.name}`,
-      onDone: onSnapCreated,
     });
   };
   return (
@@ -449,7 +421,7 @@ function ClassDetail({
   );
 }
 
-function SnapshotClasses({ rows, canDelete, onDeleted }: { rows: SnapRow[]; canDelete: boolean; onDeleted: (name: string) => void }) {
+function SnapshotClasses({ rows, canDelete }: { rows: SnapRow[]; canDelete: boolean }) {
   const cols: Column<SnapRow>[] = [
     {
       id: 'name',
@@ -475,7 +447,7 @@ function SnapshotClasses({ rows, canDelete, onDeleted }: { rows: SnapRow[]; canD
           icon="mdi:delete-outline"
           label={canDelete ? `Delete ${r.name}` : 'Your role may not delete VolumeSnapshotClasses'}
           disabled={!canDelete}
-          onClick={() => deleteSnapshotClass(r.obj, r.serves, () => onDeleted(r.name))}
+          onClick={() => deleteSnapshotClass(r.obj, r.serves)}
         />
       ),
     },

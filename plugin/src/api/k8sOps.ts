@@ -81,7 +81,7 @@ export async function createClassFlow(
   vsc: Obj | null,
   form: ClassForm,
   ctx: WizardContext,
-  onChanged: (created: unknown) => void
+  onChanged?: (created: unknown) => void
 ): Promise<'done' | 'cancelled'> {
   const ok = await previewChange({
     title: `Create StorageClass ${sc.metadata.name}`,
@@ -133,7 +133,7 @@ export function deleteClass(listed: Obj, pending: Obj[], onChanged: () => void):
   });
 }
 
-export function deleteSnapshotClass(listed: Obj, serves: string[], onChanged: () => void): Promise<boolean> {
+export function deleteSnapshotClass(listed: Obj, serves: string[], onChanged?: () => void): Promise<boolean> {
   const vsc: Obj = { ...listed, apiVersion: listed.apiVersion ?? 'snapshot.storage.k8s.io/v1', kind: listed.kind ?? 'VolumeSnapshotClass' };
   const name = vsc.metadata.name;
   return previewChange({

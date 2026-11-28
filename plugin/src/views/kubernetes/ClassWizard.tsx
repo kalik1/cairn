@@ -49,7 +49,7 @@ export interface WizardExtra {
 }
 
 /** Opens the wizard; loops back to it when the change preview is cancelled. */
-export async function runClassWizard(ctx: WizardContext, extra: WizardExtra, onChanged: (created: unknown) => void, start?: { preset?: PresetId; pool?: string }) {
+export async function runClassWizard(ctx: WizardContext, extra: WizardExtra, onChanged?: (created: unknown) => void, start?: { preset?: PresetId; pool?: string }) {
   let form: ClassForm | null = start?.preset ? defaultForm(ctx, start.preset, { pool: start.pool }) : null;
   for (;;) {
     const res = await new Promise<ClassForm | null>(resolve =>
