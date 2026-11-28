@@ -33,7 +33,35 @@
       "@headlamp-k8s",
       "prettier",
       "plugin:jsx-a11y/recommended"
-    ]
+    ],
+    "rules": {
+      "no-restricted-imports": [
+        "error",
+        {
+          "paths": [
+            {
+              "name": "@mui/material/Slider",
+              "message": "MUI Slider crashed Cairn under Headlamp's theme (\"e.charAt is not a function\"). Likely cause, not proven: MUI 5.18's Slider builds a variant for every theme palette key with a .main and runs decomposeColor on it, which throws when a .main is not a string. Use buttons, a select or a number field."
+            },
+            {
+              "name": "@mui/material",
+              "importNames": [
+                "Slider"
+              ],
+              "message": "MUI Slider crashed Cairn under Headlamp's theme (\"e.charAt is not a function\"). Likely cause, not proven: MUI 5.18's Slider builds a variant for every theme palette key with a .main and runs decomposeColor on it, which throws when a .main is not a string. Use buttons, a select or a number field."
+            }
+          ],
+          "patterns": [
+            {
+              "group": [
+                "@mui/material/Slider/*"
+              ],
+              "message": "MUI Slider crashed Cairn under Headlamp's theme (\"e.charAt is not a function\"). Likely cause, not proven: MUI 5.18's Slider builds a variant for every theme palette key with a .main and runs decomposeColor on it, which throws when a .main is not a string. Use buttons, a select or a number field."
+            }
+          ]
+        }
+      ]
+    }
   },
   "overrides": {
     "typescript": "5.6.2"

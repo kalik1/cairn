@@ -3,9 +3,11 @@
  * objects backed by Ceph (StorageClasses, snapshot classes, PVs, PVCs),
  * Ceph-CSI drivers, the pods and events of the Rook namespace, nodes.
  *
- * Lists that change often are watched (Headlamp's list hooks: a list,
- * then a watch); the rest are polled, to keep the number of WebSockets
- * low. A 404 means the CRD is missing: `has` turns the feature off.
+ * Lists that change often, and the classes a user waits for after making
+ * one (StorageClasses, snapshot classes), are watched (Headlamp's list
+ * hooks: a list, then a watch, only without refetchInterval); the rest are
+ * polled, to keep the number of WebSockets low. A 404 means the CRD is
+ * missing: `has` turns the feature off.
  */
 
 import { K8s } from '@kinvolk/headlamp-plugin/lib';
@@ -132,8 +134,10 @@ const Lists = React.memo(function Lists({ onData, pick }: { onData: (d: Omit<Kub
   const nfs = useList(CephNFS, slow);
   const rbdMirrors = useList(CephRBDMirror, slow);
   const nvmeof = useList(CephNVMeOFGateway, slow);
-  const storageClasses = useList(R.StorageClass, { refetchInterval: 15000 });
-  const snapshotClasses = useList(VolumeSnapshotClass, { refetchInterval: 15000 });
+  // Watched: Headlamp watches a list only without refetchInterval, so a
+  // class made elsewhere (kubectl, another tab) shows at once.
+  const storageClasses = useList(R.StorageClass);
+  const snapshotClasses = useList(VolumeSnapshotClass);
   const pvs = useList(R.PersistentVolume, { refetchInterval: 20000 });
   const pvcs = useList(R.PersistentVolumeClaim, { refetchInterval: 20000 });
   const csiDrivers = useList(CsiDriver, slow);
