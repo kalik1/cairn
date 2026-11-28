@@ -240,6 +240,18 @@ configuration; plain `vitest run` lacks it).
    To claim the listing, set the repository ID from artifacthub.io in
    `artifacthub/artifacthub-repo.yml`.
 
+A release candidate comes first when a distribution tests the release
+(k4all pins one for its test round):
+
+1. Set only `plugin/package.json` to `<x.y.z>-rc.<n>` (`npm version
+   <x.y.z>-rc.<n> --no-git-tag-version` in `plugin/`); README.md and
+   `distribution/` keep the pins of the last release. Merge to main.
+2. Tag main `v<x.y.z>-rc.<n>` and push the tag. The workflow publishes the
+   image `<x.y.z>-rc.<n>` and the same assets as a GitHub pre-release,
+   which never becomes the latest release, and commits nothing to
+   `artifacthub/` (Artifact Hub lists releases only).
+3. After the test, release `<x.y.z>` as above.
+
 Design notes: [DESIGN.md](https://github.com/kalik1/cairn/blob/main/DESIGN.md).
 
 ## License
