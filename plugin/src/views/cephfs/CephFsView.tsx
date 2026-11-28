@@ -15,13 +15,14 @@ import { bytes, count, plural } from '../../model/format';
 import { Obj } from '../../model/types';
 import { hrefFor, useNav } from '../../shell/nav';
 import { Column, DataTable } from '../../ui/DataTable';
-import { Action, Band, Empty, IconAction, Mono, Notice, Page, Panel } from '../../ui/kit';
+import { confirm } from '../../ui/dialogs';
+import { Action, Band, Empty, Figure, IconAction, Mono, Notice, Page, Panel } from '../../ui/kit';
 import { StateLabel } from '../../ui/Mark';
 import { useTokens } from '../../ui/useTokens';
-import { explain, PhaseLabel } from './formkit';
+import { PhaseLabel } from './formkit';
 import { FsDetail } from './FsDetail';
 import { openCreateFs, openCreateSvg } from './fsDialogs';
-import { BandFigure, Go, RankStone, StandbyStone, useFsMap } from './fsParts';
+import { Go, RankStone, StandbyStone, useFsMap } from './fsParts';
 
 export function CephFsView({ fs }: { fs?: string }) {
   if (fs) return <FsDetail key={fs} name={fs} />;
@@ -76,7 +77,10 @@ function FsList() {
           disabled={!canDelSvg}
           onClick={() => {
             const why = svgBlockers(g, kube.pvs.items, null);
-            if (why.length) return explain({ title: `${g.metadata.name} still holds volumes`, lines: why });
+            if (why.length) {
+              confirm({ infoOnly: true, title: `${g.metadata.name} still holds volumes`, consequences: why });
+              return;
+            }
             deleteSubvolumeGroup(g, {});
           }}
         />
@@ -235,9 +239,9 @@ function Stratum({ name, cr, fs, live, vols }: { name: string; cr?: Obj; fs?: Ce
         )}
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 1.5 }}>
-        <BandFigure value={fs?.clients !== undefined ? count(fs.clients) : '—'} label="clients" />
-        <BandFigure value={fs ? bytes(stored) : '—'} label="stored" />
-        <BandFigure value={count(vols.length)} label={vols.length === 1 ? 'volume' : 'volumes'} />
+        <Figure onBand size={20} value={fs?.clients !== undefined ? count(fs.clients) : '—'} label="clients" />
+        <Figure onBand size={20} value={fs ? bytes(stored) : '—'} label="stored" />
+        <Figure onBand size={20} value={count(vols.length)} label={vols.length === 1 ? 'volume' : 'volumes'} />
       </Box>
     </Box>
   );

@@ -30,7 +30,7 @@ import { Loading } from '../../shell/Gate';
 import { poolHref } from '../../shell/nav';
 import { previewChange } from '../../ui/ChangeDialog';
 import { Column, DataTable } from '../../ui/DataTable';
-import { Action, Band, Empty, IconAction, KV, Mono, Notice, Panel, Tag } from '../../ui/kit';
+import { Action, Band, Empty, Figure, IconAction, KV, Mono, Notice, Panel, Tag } from '../../ui/kit';
 import { tabular } from '../../ui/tokens';
 import { useTokens } from '../../ui/useTokens';
 import { runClassWizard } from './ClassWizard';
@@ -144,10 +144,10 @@ export function ClassesTab() {
     <>
       <Band>
         <Box sx={{ display: 'flex', gap: { xs: 3, md: 5 }, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <BandFigure value={rows.length} label={rows.length === 1 ? 'Ceph storage class' : 'Ceph storage classes'} />
-          <BandFigure value={volumes} label={volumes === 1 ? 'volume' : 'volumes'} />
-          <BandFigure value={bytes(total)} label="provisioned" />
-          <BandFigure value={snaps.length} label={snaps.length === 1 ? 'snapshot class' : 'snapshot classes'} />
+          <Figure onBand value={rows.length} label={rows.length === 1 ? 'Ceph storage class' : 'Ceph storage classes'} />
+          <Figure onBand value={volumes} label={volumes === 1 ? 'volume' : 'volumes'} />
+          <Figure onBand value={bytes(total)} label="provisioned" />
+          <Figure onBand value={snaps.length} label={snaps.length === 1 ? 'snapshot class' : 'snapshot classes'} />
         </Box>
         {rows.length > 0 && (
           <Box sx={{ mt: 2.5 }}>
@@ -247,16 +247,6 @@ export function ClassesTab() {
 
       <SnapshotClasses rows={snaps} canDelete={canDeleteSnap} onDeleted={n => vscs.remove(n)} />
     </>
-  );
-}
-
-function BandFigure({ value, label }: { value: React.ReactNode; label: string }) {
-  const t = useTokens();
-  return (
-    <Box sx={{ minWidth: 0 }}>
-      <Typography sx={{ fontSize: 26, fontWeight: 600, lineHeight: 1.15, color: t.basaltText, ...tabular }}>{value}</Typography>
-      <Typography sx={{ fontSize: 13, color: t.basaltMuted }}>{label}</Typography>
-    </Box>
   );
 }
 

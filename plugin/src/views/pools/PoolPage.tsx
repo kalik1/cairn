@@ -7,11 +7,6 @@
  */
 
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
 import Tooltip from '@mui/material/Tooltip';
 import yaml from 'js-yaml';
 import React from 'react';
@@ -39,14 +34,14 @@ import { LiveGate } from '../../shell/Gate';
 import { imageHref, useNav } from '../../shell/nav';
 import { TimeChart } from '../../ui/charts';
 import { Column as Col, DataTable } from '../../ui/DataTable';
-import { openDialog } from '../../ui/dialogs';
-import { Action, Band, Empty, Grid, KV, Mono, Notice, Page, Panel, Tag, When } from '../../ui/kit';
+import { confirm } from '../../ui/dialogs';
+import { Action, Band, Empty, Figure, Grid, KV, Mono, Notice, Page, Panel, Tag, When } from '../../ui/kit';
 import { Mark, StateLabel } from '../../ui/Mark';
 import { SERIES, STATE, tabular } from '../../ui/tokens';
 import { useTokens } from '../../ui/useTokens';
 import { phaseTone, PoolRow, RLink, usePoolRows } from './common';
 import { openPoolForm } from './PoolForm';
-import { BandFigure, Column, Legend, Stratum } from './Strata';
+import { Column, Legend, Stratum } from './Strata';
 
 export function PoolPage({ name }: { name: string }) {
   const c = useCeph();
@@ -76,7 +71,13 @@ export function PoolPage({ name }: { name: string }) {
         radosNamespaces: radosNamespacesOf(cr, k.radosNamespaces.items),
         objectStores: objectStoresSharing(name, k.objectStores.items),
       },
-      { pool: row.pool, onBlocked: b => openBlockers(name, b), onDone: () => c.refresh() }
+      {
+        pool: row.pool,
+        // Why the pool cannot be deleted yet, with one way out: close.
+        onBlocked: b =>
+          confirm({ infoOnly: true, title: `Pool ${name} cannot be deleted yet`, body: 'Rook would refuse, or volumes would break. Clear these first:', consequences: b }),
+        onDone: () => c.refresh(),
+      }
     );
     if (ok) nav.go('pools');
   };
@@ -151,30 +152,6 @@ export function PoolPage({ name }: { name: string }) {
   );
 }
 
-/** Why a pool cannot be deleted yet, with one way out: close. */
-function openBlockers(pool: string, blockers: string[]) {
-  openDialog(close => (
-    <Dialog open onClose={close} maxWidth="sm" fullWidth aria-labelledby="cairn-blockers-title">
-      <DialogTitle id="cairn-blockers-title" sx={{ fontSize: 18 }}>
-        Pool {pool} cannot be deleted yet
-      </DialogTitle>
-      <DialogContent>
-        <Box sx={{ fontSize: 14, mb: 1 }}>Rook would refuse, or volumes would break. Clear these first:</Box>
-        <Box component="ul" sx={{ m: 0, pl: 2.5, fontSize: 13.5, lineHeight: 1.55, '& li': { mb: 0.5 } }}>
-          {blockers.map(b => (
-            <li key={b}>{b}</li>
-          ))}
-        </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button variant="contained" onClick={close}>
-          Close
-        </Button>
-      </DialogActions>
-    </Dialog>
-  ));
-}
-
 /* --------------------------------------------------------- the band */
 
 function PoolBand({ row }: { row: PoolRow }) {
@@ -220,10 +197,10 @@ function PoolBand({ row }: { row: PoolRow }) {
             <BandState tone={row.state.tone} word={row.state.word} title={row.state.detail} />
           </Box>
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 2 }}>
-            <BandFigure value={bytes(u.stored)} label="Stored" sub={`${count(u.objects)} objects`} />
-            <BandFigure value={bytes(u.maxAvail)} label="Room for data" sub="before the OSDs fill" />
-            <BandFigure value={pct(u.percentUsed)} label="Used" sub={quota ? `quota ${pct(u.stored / quota)} used` : 'no quota'} />
-            <BandFigure
+            <Figure onBand value={bytes(u.stored)} label="Stored" sub={`${count(u.objects)} objects`} />
+            <Figure onBand value={bytes(u.maxAvail)} label="Room for data" sub="before the OSDs fill" />
+            <Figure onBand value={pct(u.percentUsed)} label="Used" sub={quota ? `quota ${pct(u.stored / quota)} used` : 'no quota'} />
+            <Figure onBand
               value={`${Number.isInteger(p.rawFactor) ? p.rawFactor : p.rawFactor.toFixed(2)}×`}
               label="Raw per stored byte"
               sub={compressed ? `compression saves ${bytes(u.compressUnderBytes - u.compressBytesUsed)}` : p.type === 'erasure' ? 'erasure coded' : 'replicated'}

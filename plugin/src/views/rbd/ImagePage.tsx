@@ -32,12 +32,11 @@ import { LiveGate, Loading } from '../../shell/Gate';
 import { imageHref, useNav } from '../../shell/nav';
 import { Column as Col, DataTable } from '../../ui/DataTable';
 import { confirm } from '../../ui/dialogs';
-import { Action, Band, Empty, Grid, IconAction, KV, Mono, Notice, Page, Panel, Tag, When } from '../../ui/kit';
+import { Action, Band, Empty, Figure, Grid, IconAction, KV, Mono, Notice, Page, Panel, Tag, When } from '../../ui/kit';
 import { StateLabel } from '../../ui/Mark';
 import { tabular } from '../../ui/tokens';
 import { useTokens } from '../../ui/useTokens';
 import { phaseTone, RLink } from '../pools/common';
-import { BandFigure } from '../pools/Strata';
 import { CoreSample } from './CoreSample';
 import { hangarVmHref, RbdOne, useBindings, useCloneNeedsProtect, useRbdImage, useRbdPools } from './data';
 import { openClone, openGrow, openSnapshot, openVolumeSnapshot } from './dialogs';
@@ -231,10 +230,10 @@ function ImageBand({ img, one, b }: { img: RbdImage; one: RbdOne; b: ImageBindin
           </Box>
         </Box>
         <Box sx={{ flex: '0 1 420px', ml: { xs: 0, lg: 'auto' }, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 2 }}>
-          <BandFigure value={bytes(img.size)} label="Provisioned" sub={`${count(img.numObjs)} objects of ${bytes(img.objSize)}`} />
-          <BandFigure value={total !== undefined ? bytes(total) : '—'} label="Written" sub={total !== undefined && img.size ? `${pct(total / img.size)} of provisioned` : 'reading usage…'} />
-          <BandFigure value={img.snaps.length} label={img.snaps.length === 1 ? 'Snapshot' : 'Snapshots'} sub={snapUsed ? `keep ${bytes(snapUsed)}` : undefined} />
-          <BandFigure value={img.children.length} label={img.children.length === 1 ? 'Clone' : 'Clones'} sub={img.parent ? `clone of ${img.parent.image}` : 'not a clone'} />
+          <Figure onBand value={bytes(img.size)} label="Provisioned" sub={`${count(img.numObjs)} objects of ${bytes(img.objSize)}`} />
+          <Figure onBand value={total !== undefined ? bytes(total) : '—'} label="Written" sub={total !== undefined && img.size ? `${pct(total / img.size)} of provisioned` : 'reading usage…'} />
+          <Figure onBand value={img.snaps.length} label={img.snaps.length === 1 ? 'Snapshot' : 'Snapshots'} sub={snapUsed ? `keep ${bytes(snapUsed)}` : undefined} />
+          <Figure onBand value={img.children.length} label={img.children.length === 1 ? 'Clone' : 'Clones'} sub={img.parent ? `clone of ${img.parent.image}` : 'not a clone'} />
         </Box>
       </Box>
     </Band>

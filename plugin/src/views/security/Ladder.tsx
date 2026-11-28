@@ -13,6 +13,7 @@ import { useKube } from '../../api/kube';
 import { rookAttrs, useCan } from '../../api/permissions';
 import { dropPriorCsi, onlyAes256k, rotateCsi, rotateDaemons, rotateMirrorPeer } from '../../api/securityOps';
 import { CsiReadiness, KeySummary, LadderStep, nextStep, StepState } from '../../model/cephx';
+import { Figure } from '../../ui/kit';
 import { Mark } from '../../ui/Mark';
 import { STATE, StateTone, tabular } from '../../ui/tokens';
 import { useTokens } from '../../ui/useTokens';
@@ -165,9 +166,9 @@ export function LadderBand({
         </Box>
         {summary && (
           <Box sx={{ display: 'flex', gap: 3, ...tabular }}>
-            <Figure value={summary.aes256k} label="keys on aes256k" />
-            <Figure value={summary.aes} label="keys on aes" warn={summary.aes > 0} />
-            <Figure value={version || '—'} label={versionOk === false ? 'Ceph: no aes256k' : 'Ceph version'} warn={versionOk === false} />
+            <Figure onBand value={summary.aes256k} label="keys on aes256k" />
+            <Figure onBand value={summary.aes} label="keys on aes" tone={summary.aes > 0 ? 'warn' : undefined} />
+            <Figure onBand value={version || '—'} label={versionOk === false ? 'Ceph: no aes256k' : 'Ceph version'} tone={versionOk === false ? 'warn' : undefined} />
           </Box>
         )}
       </Box>
@@ -222,16 +223,6 @@ export function LadderBand({
           );
         })}
       </Box>
-    </Box>
-  );
-}
-
-function Figure({ value, label, warn }: { value: React.ReactNode; label: string; warn?: boolean }) {
-  const t = useTokens();
-  return (
-    <Box>
-      <Box sx={{ fontSize: 22, fontWeight: 600, lineHeight: 1.2, color: warn ? STATE.warn : undefined }}>{value}</Box>
-      <Box sx={{ fontSize: 12.5, color: t.basaltMuted }}>{label}</Box>
     </Box>
   );
 }

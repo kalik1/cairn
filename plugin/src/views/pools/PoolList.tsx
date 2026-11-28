@@ -15,13 +15,13 @@ import { ownerLabel } from '../../model/pools';
 import { LiveGate } from '../../shell/Gate';
 import { useNav } from '../../shell/nav';
 import { Column as Col, DataTable } from '../../ui/DataTable';
-import { Action, Band, Empty, MiniBar, Mono, Page, Panel, Tag } from '../../ui/kit';
+import { Action, Band, Empty, Figure, MiniBar, Mono, Page, Panel, Tag } from '../../ui/kit';
 import { StateLabel } from '../../ui/Mark';
 import { tabular } from '../../ui/tokens';
 import { useTokens } from '../../ui/useTokens';
 import { PoolRow, RLink, STRATA, usePoolRows } from './common';
 import { openPoolForm } from './PoolForm';
-import { BandFigure, Column, Legend, Stratum } from './Strata';
+import { Column, Legend, Stratum } from './Strata';
 
 export function PoolList() {
   const c = useCeph();
@@ -115,10 +115,10 @@ function ClusterBand({ rows }: { rows: PoolRow[] }) {
           <Legend strata={strata} />
         </Box>
         <Box sx={{ gridColumn: { xs: '2', lg: 'auto' }, maxWidth: 360, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, alignContent: 'start' }}>
-          <BandFigure value={bytes(usedRaw)} label="Raw used" sub={`of ${bytes(total)} (${share(usedRaw)})`} />
-          <BandFigure value={bytes(stored)} label="Data stored" sub="before copies" />
-          <BandFigure value={bytes(df?.avail)} label="Raw free" sub={`full at ${pct(full, 0)}`} />
-          <BandFigure value={rows.length} label="Pools" sub={`${count(rows.reduce((n, r) => n + (r.pool.usage?.objects ?? 0), 0))} objects`} />
+          <Figure onBand value={bytes(usedRaw)} label="Raw used" sub={`of ${bytes(total)} (${share(usedRaw)})`} />
+          <Figure onBand value={bytes(stored)} label="Data stored" sub="before copies" />
+          <Figure onBand value={bytes(df?.avail)} label="Raw free" sub={`full at ${pct(full, 0)}`} />
+          <Figure onBand value={rows.length} label="Pools" sub={`${count(rows.reduce((n, r) => n + (r.pool.usage?.objects ?? 0), 0))} objects`} />
         </Box>
       </Box>
     </Band>

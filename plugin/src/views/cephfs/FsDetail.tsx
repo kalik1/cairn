@@ -25,13 +25,14 @@ import { Obj } from '../../model/types';
 import { LiveGate } from '../../shell/Gate';
 import { poolHref, useNav } from '../../shell/nav';
 import { Column, DataTable } from '../../ui/DataTable';
-import { Action, Band, Empty, Grid, IconAction, KV, Meter, MiniBar, Mono, Notice, Page, Panel, Tag, ToolButton, When } from '../../ui/kit';
+import { confirm } from '../../ui/dialogs';
+import { Action, Band, Empty, Figure, Grid, IconAction, KV, Meter, MiniBar, Mono, Notice, Page, Panel, Tag, ToolButton, When } from '../../ui/kit';
 import { StateLabel } from '../../ui/Mark';
 import { useTokens } from '../../ui/useTokens';
 import { CsiNotice, VolumesPanel } from './CephFsView';
-import { Conditions, explain, PhaseLabel, PodList } from './formkit';
+import { Conditions, PhaseLabel, PodList } from './formkit';
 import { openCreateSvg } from './fsDialogs';
-import { BandFigure, Go, GroupRow, RankStone, StandbyStone, useFsGroups, useFsMap } from './fsParts';
+import { Go, GroupRow, RankStone, StandbyStone, useFsGroups, useFsMap } from './fsParts';
 
 export function FsDetail({ name }: { name: string }) {
   const kube = useKube();
@@ -78,8 +79,15 @@ export function FsDetail({ name }: { name: string }) {
   const onDelete = () => {
     if (!cr) return;
     const why = fsBlockers(cr, kube.pvs.items, kube.subVolumeGroups.items.filter(x => x.metadata.namespace === kube.ns), kube.nfs.items);
-    if (why.length)
-      return explain({ title: `${name} cannot be deleted yet`, lines: why, footer: 'Delete what depends on it first, then come back: the delete preview lists what happens to the data.' });
+    if (why.length) {
+      confirm({
+        infoOnly: true,
+        title: `${name} cannot be deleted yet`,
+        consequences: why,
+        footer: 'Delete what depends on it first, then come back: the delete preview lists what happens to the data.',
+      });
+      return;
+    }
     deleteFilesystem(cr, { pvs: kube.pvs.items, onDone: () => nav.go('cephfs') });
   };
 
@@ -141,12 +149,12 @@ export function FsDetail({ name }: { name: string }) {
                 <Box sx={{ fontSize: 13, color: t.basaltMuted }}>No standby MDS: if the active one fails, clients wait until Kubernetes restarts it.</Box>
               )}
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 2, pt: 1.5, borderTop: `1px solid ${t.basaltEdge}` }}>
-                <BandFigure value={count(fs.clients ?? 0)} label="client sessions" />
-                <BandFigure value={`${fs.ranks.filter(r => r.state === 'active').length} of ${fs.maxMds}`} label="active of max MDS" />
-                <BandFigure value={count(standbys.length + fs.replay.length)} label={`standby (wanted ${fs.standbyWanted})`} />
-                <BandFigure value={fs.allowStandbyReplay ? 'On' : 'Off'} label="standby-replay" />
-                <BandFigure value={count(groups.total)} label="subvolumes" />
-                <BandFigure value={count(fs.epoch)} label="MDS map epoch" />
+                <Figure onBand value={count(fs.clients ?? 0)} label="client sessions" />
+                <Figure onBand value={`${fs.ranks.filter(r => r.state === 'active').length} of ${fs.maxMds}`} label="active of max MDS" />
+                <Figure onBand value={count(standbys.length + fs.replay.length)} label={`standby (wanted ${fs.standbyWanted})`} />
+                <Figure onBand value={fs.allowStandbyReplay ? 'On' : 'Off'} label="standby-replay" />
+                <Figure onBand value={count(groups.total)} label="subvolumes" />
+                <Figure onBand value={count(fs.epoch)} label="MDS map epoch" />
               </Box>
             </Box>
           ) : (
@@ -324,12 +332,15 @@ function GroupsPanel({
             disabled={!canDelete || !!g.cr.metadata.deletionTimestamp}
             onClick={() => {
               const why = svgBlockers(g.cr as Obj, kube.pvs.items, g.row ? g.row.subvolumes : null);
-              if (why.length)
-                return explain({
+              if (why.length) {
+                confirm({
+                  infoOnly: true,
                   title: `${g.name} is not empty`,
-                  lines: why,
+                  consequences: why,
                   footer: `Delete the claims of the Kubernetes volumes in it first; Ceph-CSI then removes their subvolumes. Subvolumes made by hand go with: ceph fs subvolume rm ${name} <subvolume> --group_name ${g.name}.`,
                 });
+                return;
+              }
               deleteSubvolumeGroup(g.cr as Obj, {});
             }}
           />

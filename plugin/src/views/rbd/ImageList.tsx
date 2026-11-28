@@ -17,12 +17,11 @@ import { LiveGate, Loading } from '../../shell/Gate';
 import { imageHref, useNav } from '../../shell/nav';
 import { Column as Col, DataTable } from '../../ui/DataTable';
 import { confirm } from '../../ui/dialogs';
-import { Action, Band, Empty, IconAction, MiniBar, Mono, Notice, Page, Panel, Toolbar, ToolButton, When } from '../../ui/kit';
+import { Action, Band, Empty, Figure, IconAction, MiniBar, Mono, Notice, Page, Panel, Toolbar, ToolButton, When } from '../../ui/kit';
 import { StateLabel } from '../../ui/Mark';
 import { tabular } from '../../ui/tokens';
 import { useTokens } from '../../ui/useTokens';
 import { RLink } from '../pools/common';
-import { BandFigure } from '../pools/Strata';
 import { CoreSample } from './CoreSample';
 import { useBindings, useRbdList, useRbdPools } from './data';
 import { openCreateImage } from './dialogs';
@@ -159,10 +158,10 @@ function ThinBand({ pool, rows, du, duError }: { pool: string; rows: Row[]; du: 
           {duError && <Box sx={{ color: '#E0707A', fontSize: 12.5 }}>Usage unknown: {duError}</Box>}
         </Box>
         <Box sx={{ flex: '0 1 420px', ml: { xs: 0, lg: 'auto' }, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 2 }}>
-          <BandFigure value={bytes(provisioned)} label="Provisioned" sub={plural(rows.length, 'image')} />
-          <BandFigure value={used === null ? '—' : bytes(used)} label="Written" sub={used !== null && provisioned ? `${pct(used / provisioned)} of provisioned` : undefined} />
-          <BandFigure value={room === null ? '—' : bytes(room)} label="Pool room for data" sub="shared with other pools" />
-          <BandFigure value={busy} label="In use" sub={`${rows.length - busy} idle`} />
+          <Figure onBand value={bytes(provisioned)} label="Provisioned" sub={plural(rows.length, 'image')} />
+          <Figure onBand value={used === null ? '—' : bytes(used)} label="Written" sub={used !== null && provisioned ? `${pct(used / provisioned)} of provisioned` : undefined} />
+          <Figure onBand value={room === null ? '—' : bytes(room)} label="Pool room for data" sub="shared with other pools" />
+          <Figure onBand value={busy} label="In use" sub={`${rows.length - busy} idle`} />
         </Box>
       </Box>
     </Band>

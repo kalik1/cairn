@@ -254,32 +254,6 @@ export function openForm(render: (close: () => void) => React.ReactNode) {
   return openDialog(render);
 }
 
-/* ------------------------------------------------------ explain why not */
-
-/** A dialog that says why an action cannot run now, and what to do. */
-export function explain(o: { title: string; lines: React.ReactNode[]; footer?: React.ReactNode }) {
-  openDialog(close => (
-    <Dialog open onClose={close} maxWidth="sm" fullWidth aria-labelledby="cairn-explain-title">
-      <DialogTitle id="cairn-explain-title" sx={{ fontSize: 18 }}>
-        {o.title}
-      </DialogTitle>
-      <DialogContent>
-        <Box component="ul" sx={{ m: 0, pl: 2.5, fontSize: 14, lineHeight: 1.55, '& li': { mb: 0.75 } }}>
-          {o.lines.map((l, i) => (
-            <li key={i}>{l}</li>
-          ))}
-        </Box>
-        {o.footer && <Box sx={{ mt: 1.5, fontSize: 13.5 }}>{o.footer}</Box>}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={close} variant="contained">
-          Close
-        </Button>
-      </DialogActions>
-    </Dialog>
-  ));
-}
-
 /* --------------------------------------------------- pods, conditions */
 
 const podReady = (p: Obj) =>

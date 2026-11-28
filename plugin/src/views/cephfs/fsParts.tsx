@@ -190,17 +190,6 @@ export function StandbyStone({ d }: { d: MdsDaemon }) {
   );
 }
 
-/** A figure on the band: value large, label small, basalt colours. */
-export function BandFigure({ value, label }: { value: React.ReactNode; label: React.ReactNode }) {
-  const t = useTokens();
-  return (
-    <Box sx={{ minWidth: 0 }}>
-      <Box sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.2, ...tabular }}>{value}</Box>
-      <Box sx={{ fontSize: 12.5, color: t.basaltMuted }}>{label}</Box>
-    </Box>
-  );
-}
-
 /** A link inside Cairn (keeps the single-page route). */
 export function Go({ to, children, sx }: { to: string; children: React.ReactNode; sx?: any }) {
   return (

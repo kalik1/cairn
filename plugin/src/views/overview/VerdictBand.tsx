@@ -12,7 +12,7 @@ import { ago, bytes, count, duration, pct, plural, rate } from '../../model/form
 import { verdict } from '../../model/health';
 import { countsFromStates, progressEta, recoveryEta, summarizePgs } from '../../model/pg';
 import { healthWord } from '../../ui/health';
-import { Band } from '../../ui/kit';
+import { Band, Figure } from '../../ui/kit';
 import { Mark } from '../../ui/Mark';
 import { STATE, tabular } from '../../ui/tokens';
 import { useTokens } from '../../ui/useTokens';
@@ -20,16 +20,6 @@ import { PgField, PgLegend } from './PgField';
 
 /** A pool this young may still have PGs that are not active: they hold no data. */
 const NEW_POOL_MS = 10 * 60 * 1000;
-
-function BandFigure({ value, label }: { value: React.ReactNode; label: React.ReactNode }) {
-  const t = useTokens();
-  return (
-    <Box sx={{ minWidth: 0 }}>
-      <Box sx={{ fontSize: 19, fontWeight: 600, lineHeight: 1.25, color: t.basaltText, ...tabular, whiteSpace: 'nowrap' }}>{value}</Box>
-      <Box sx={{ fontSize: 12.5, color: t.basaltMuted }}>{label}</Box>
-    </Box>
-  );
-}
 
 function BandBar({ value, color, label, right }: { value: number; color: string; label: React.ReactNode; right?: React.ReactNode }) {
   const t = useTokens();
@@ -99,10 +89,10 @@ export function VerdictBand() {
           </Box>
           {s && (
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 2 }}>
-              <BandFigure value={count(s.pg.total)} label={`placement groups in ${plural(s.pools, 'pool')}`} />
-              <BandFigure value={count(s.objects)} label="objects" />
-              <BandFigure value={bytes(s.dataBytes)} label="data stored" />
-              <BandFigure value={`${pct(s.totalBytes ? s.usedBytes / s.totalBytes : 0)}`} label={`raw used of ${bytes(s.totalBytes)}`} />
+              <Figure onBand size={19} value={count(s.pg.total)} label={`placement groups in ${plural(s.pools, 'pool')}`} />
+              <Figure onBand size={19} value={count(s.objects)} label="objects" />
+              <Figure onBand size={19} value={bytes(s.dataBytes)} label="data stored" />
+              <Figure onBand size={19} value={`${pct(s.totalBytes ? s.usedBytes / s.totalBytes : 0)}`} label={`raw used of ${bytes(s.totalBytes)}`} />
             </Box>
           )}
           {(moving || events.length > 0) && r && (

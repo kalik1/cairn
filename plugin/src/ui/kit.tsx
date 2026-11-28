@@ -496,13 +496,17 @@ export function SectionTitle({ children, actions }: { children: React.ReactNode;
   );
 }
 
-/** A figure: value large, label small under it. */
+/**
+ * A figure: value large, label small under it. Neither is cut short: in a
+ * narrow column they wrap.
+ */
 export function Figure({
   value,
   label,
   tone,
   sub,
   onBand,
+  size = 22,
 }: {
   value: React.ReactNode;
   label: React.ReactNode;
@@ -510,21 +514,18 @@ export function Figure({
   sub?: React.ReactNode;
   /** On a basalt Band: light text in both themes. */
   onBand?: boolean;
+  /** The value's font size (px), for a band whose other text is smaller or larger. */
+  size?: number;
 }) {
   const t = useTokens();
   const text = onBand ? t.basaltText : t.text;
   const muted = onBand ? t.basaltMuted : t.muted;
   return (
     <Box sx={{ minWidth: 0 }}>
-      <Typography
-        sx={{ fontSize: 22, fontWeight: 600, lineHeight: 1.2, color: tone ? (onBand ? STATE[tone] : stateText(tone, t.dark)) : text, ...tabular }}
-        noWrap
-      >
+      <Typography sx={{ fontSize: size, fontWeight: 600, lineHeight: 1.2, color: tone ? (onBand ? STATE[tone] : stateText(tone, t.dark)) : text, ...tabular }}>
         {value}
       </Typography>
-      <Typography sx={{ fontSize: 12.5, color: muted }} noWrap>
-        {label}
-      </Typography>
+      <Typography sx={{ fontSize: 12.5, color: muted }}>{label}</Typography>
       {sub && <Typography sx={{ fontSize: 12, color: muted, ...tabular }}>{sub}</Typography>}
     </Box>
   );
