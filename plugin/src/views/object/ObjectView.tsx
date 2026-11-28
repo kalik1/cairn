@@ -15,11 +15,11 @@ import { Claim, claimInfo, classStore, isBucketClass, storeInfo, storePools } fr
 import { Obj } from '../../model/types';
 import { hrefFor, useNav } from '../../shell/nav';
 import { Column, DataTable } from '../../ui/DataTable';
-import { Action, Band, Empty, IconAction, Mono, Page, Panel } from '../../ui/kit';
+import { Action, Band, Empty, Figure, IconAction, Mono, Page, Panel } from '../../ui/kit';
 import { Mark } from '../../ui/Mark';
 import { useTokens } from '../../ui/useTokens';
 import { PhaseLabel, podState } from '../cephfs/formkit';
-import { BandFigure, Go } from '../cephfs/fsParts';
+import { Go } from '../cephfs/fsParts';
 import { openCreateClaim, openCreateClass, openCreateStore } from './objDialogs';
 import { useStoreLive } from './objParts';
 import { StoreDetail } from './StoreDetail';
@@ -132,9 +132,9 @@ function StoreStratum({ store }: { store: Obj }) {
         </Box>
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 1.5 }}>
-        <BandFigure value={live.buckets ? count(live.buckets.length) : '—'} label="buckets" />
-        <BandFigure value={live.uids ? count(live.uids.length) : '—'} label="users" />
-        <BandFigure value={data?.usage ? bytes(data.usage.stored) : ready ? bytes(0) : '—'} label={`stored, ${plural(pools.length, 'pool')}`} />
+        <Figure onBand size={20} value={live.buckets ? count(live.buckets.length) : '—'} label="buckets" />
+        <Figure onBand size={20} value={live.uids ? count(live.uids.length) : '—'} label="users" />
+        <Figure onBand size={20} value={data?.usage ? bytes(data.usage.stored) : ready ? bytes(0) : '—'} label={`stored, ${plural(pools.length, 'pool')}`} />
       </Box>
     </Box>
   );

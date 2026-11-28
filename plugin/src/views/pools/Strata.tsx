@@ -153,15 +153,3 @@ export function Legend({ strata, dense }: { strata: Stratum[]; dense?: boolean }
     </Box>
   );
 }
-
-/** A figure on the basalt band. */
-export function BandFigure({ value, label, sub }: { value: React.ReactNode; label: React.ReactNode; sub?: React.ReactNode }) {
-  const t = useTokens();
-  return (
-    <Box sx={{ minWidth: 0 }}>
-      <Box sx={{ fontSize: 24, fontWeight: 600, lineHeight: 1.2, color: t.basaltText, whiteSpace: 'nowrap', ...tabular }}>{value}</Box>
-      <Box sx={{ fontSize: 12.5, color: t.basaltMuted }}>{label}</Box>
-      {sub && <Box sx={{ fontSize: 12, color: t.basaltMuted, ...tabular }}>{sub}</Box>}
-    </Box>
-  );
-}

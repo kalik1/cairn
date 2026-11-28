@@ -2,7 +2,8 @@
  * Dialogs opened from anywhere (tree, tables, faceplate): a module-level
  * stack rendered by <DialogHost/> in the shell. `confirm()` covers the
  * common case, including "type the name to delete" and a list of
- * consequences.
+ * consequences, and the information-only dialog (why an action cannot run
+ * now, and what to do).
  */
 
 import Box from '@mui/material/Box';
@@ -53,22 +54,31 @@ export function DialogHost() {
   );
 }
 
-export interface ConfirmOptions {
+/** The button of an information-only dialog when `confirm` gives none. */
+export const INFO_CLOSE = 'Close';
+
+interface ConfirmCommon {
   title: string;
   body?: React.ReactNode;
-  confirm: string;
   danger?: boolean;
   /** The user must type this to enable the button. */
   typeToConfirm?: string;
-  /** What will happen, one line each (shown as a list). */
+  /** One line each, shown as a list: what will happen, or (information only) what stands in the way. */
   consequences?: React.ReactNode[];
-  /** Information only: one button (the `confirm` label, default "Close"), resolves null. */
-  infoOnly?: boolean;
+  /** A last line under the list, such as what to do first. */
+  footer?: React.ReactNode;
   /** Optional checkbox, its value is returned. */
   option?: { label: string; help?: string; initial?: boolean };
 }
 
-/** Resolves to null when cancelled, else { option } (the checkbox value). */
+export type ConfirmOptions = ConfirmCommon &
+  (
+    | { confirm: string; infoOnly?: false }
+    /** Information only: one button (the `confirm` label, default INFO_CLOSE), resolves null. */
+    | { confirm?: string; infoOnly: true }
+  );
+
+/** Resolves to null when cancelled (an information-only dialog always), else { option } (the checkbox value). */
 export function confirm(o: ConfirmOptions): Promise<{ option: boolean } | null> {
   return new Promise(resolve => {
     openDialog(close => (
@@ -101,6 +111,7 @@ function ConfirmDialog({ o, onClose }: { o: ConfirmOptions; onClose: (r: { optio
             ))}
           </Box>
         )}
+        {o.footer && <Box sx={{ mt: 1.5, fontSize: 13.5, lineHeight: 1.55 }}>{o.footer}</Box>}
         {o.option && (
           <FormControlLabel
             sx={{ mt: 1, alignItems: 'flex-start' }}
@@ -143,7 +154,7 @@ function ConfirmDialog({ o, onClose }: { o: ConfirmOptions; onClose: (r: { optio
           color={o.danger ? 'error' : 'primary'}
          
         >
-          {o.confirm}
+          {o.confirm ?? INFO_CLOSE}
         </Button>
       </DialogActions>
     </Dialog>

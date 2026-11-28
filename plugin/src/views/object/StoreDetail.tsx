@@ -31,11 +31,12 @@ import { Obj } from '../../model/types';
 import { LiveGate } from '../../shell/Gate';
 import { poolHref, useNav } from '../../shell/nav';
 import { Column, DataTable } from '../../ui/DataTable';
-import { Action, Band, Empty, Grid, IconAction, KV, Meter, Mono, Notice, Page, Panel, Tag, ToolButton, When } from '../../ui/kit';
+import { confirm } from '../../ui/dialogs';
+import { Action, Band, Empty, Figure, Grid, IconAction, KV, Meter, Mono, Notice, Page, Panel, Tag, ToolButton, When } from '../../ui/kit';
 import { Mark, StateLabel } from '../../ui/Mark';
 import { useTokens } from '../../ui/useTokens';
-import { Conditions, explain, PhaseLabel, PodList, podState } from '../cephfs/formkit';
-import { BandFigure, Go } from '../cephfs/fsParts';
+import { Conditions, PhaseLabel, PodList, podState } from '../cephfs/formkit';
+import { Go } from '../cephfs/fsParts';
 import { openCreateUser } from './objDialogs';
 import { ClaimsPanel, ClassesPanel } from './ObjectView';
 import { KeyCount, ShowKeys, StoreLive, useStoreLive } from './objParts';
@@ -76,7 +77,10 @@ export function StoreDetail({ name, tab }: { name: string; tab?: string }) {
   const deleting = !!store.metadata.deletionTimestamp;
   const onDelete = () => {
     const why = storeDeleteBlockers(store, kube.objectUsers.items, kube.bucketClaims.items, kube.storageClasses.items, live.buckets);
-    if (why.length) return explain({ title: `${name} cannot be deleted yet`, lines: why });
+    if (why.length) {
+      confirm({ infoOnly: true, title: `${name} cannot be deleted yet`, consequences: why });
+      return;
+    }
     deleteStore(store, { onDone: () => nav.go('object') });
   };
 
@@ -165,11 +169,11 @@ export function StoreDetail({ name, tab }: { name: string; tab?: string }) {
             )}
           </Box>
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 2, pt: 1.5, borderTop: `1px solid ${t.basaltEdge}` }}>
-            <BandFigure value={live.buckets ? count(live.buckets.length) : '—'} label="buckets" />
-            <BandFigure value={live.buckets ? count(live.buckets.reduce((n, b) => n + b.objects, 0)) : '—'} label="objects" />
-            <BandFigure value={live.buckets ? bytes(live.buckets.reduce((n, b) => n + b.sizeBytes, 0)) : '—'} label="in buckets" />
-            <BandFigure value={live.uids ? count(live.uids.length) : '—'} label="users" />
-            <BandFigure value={count(storeClaims(store, kube.bucketClaims.items, kube.storageClasses.items).length)} label="bucket claims" />
+            <Figure onBand value={live.buckets ? count(live.buckets.length) : '—'} label="buckets" />
+            <Figure onBand value={live.buckets ? count(live.buckets.reduce((n, b) => n + b.objects, 0)) : '—'} label="objects" />
+            <Figure onBand value={live.buckets ? bytes(live.buckets.reduce((n, b) => n + b.sizeBytes, 0)) : '—'} label="in buckets" />
+            <Figure onBand value={live.uids ? count(live.uids.length) : '—'} label="users" />
+            <Figure onBand value={count(storeClaims(store, kube.bucketClaims.items, kube.storageClasses.items).length)} label="bucket claims" />
           </Box>
         </Box>
       </Band>
@@ -388,11 +392,14 @@ function UsersTab({ store, live }: { store: Obj; live: StoreLive }) {
                   icon="mdi:delete-outline"
                   color="error"
                   onClick={() => {
-                    if (current.buckets)
-                      return explain({
+                    if (current.buckets) {
+                      confirm({
+                        infoOnly: true,
                         title: `${current.uid} still owns buckets`,
-                        lines: [`It owns ${plural(current.buckets, 'bucket')}. Ceph refuses to remove a user with buckets: empty and delete them, or move them to another user, first.`],
+                        consequences: [`It owns ${plural(current.buckets, 'bucket')}. Ceph refuses to remove a user with buckets: empty and delete them, or move them to another user, first.`],
                       });
+                      return;
+                    }
                     deleteUser(current.cr as Obj, { onDone: () => setSel(null) });
                   }}
                   reason={canDelete ? null : 'Your role does not allow deleting object store users'}
