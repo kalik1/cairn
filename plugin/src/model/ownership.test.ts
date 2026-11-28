@@ -1,3 +1,4 @@
+import { cephMonitoring, MONITORING_FIELDS } from './clusterSpec';
 import { fieldManagers, fieldsCover, k4allOwnedFields, k4allOwns, ownedBy, ownedByK4all } from './ownership';
 import { Obj } from './types';
 
@@ -303,5 +304,79 @@ describe('field ownership from managedFields', () => {
     expect(fieldManagers({ metadata: { name: 'x', managedFields: [{ manager: 'k4all-operator', fieldsType: 'FieldsV2', fieldsV1: { 'f:spec': {} } }] } as any }, 'spec')).toEqual([]);
     expect(fieldsCover({}, 'spec')).toBe(false);
     expect(fieldsCover({ 'f:spec': {} }, '')).toBe(false);
+  });
+});
+
+/**
+ * A CephCluster k4all created (seed), with Rook monitoring as k4all v2.7.2
+ * applies it while features.rook.monitoring is on: spec.monitoring.enabled
+ * and spec.labels.monitoring, server-side as k4all-operator. `monitoring`:
+ * the k4all-operator entry's monitoring fields (none: turned off, k4all's
+ * apply no longer names them); `labelsBy`: who else wrote the labels.
+ */
+function ccMonitoring(monitoring: Record<string, unknown> | null, opts: { labels?: Record<string, string>; labelsBy?: string } = {}): Obj {
+  const labels = opts.labels ?? { release: 'kube-prometheus-stack' };
+  return {
+    apiVersion: 'ceph.rook.io/v1',
+    kind: 'CephCluster',
+    metadata: {
+      name: 'rook-ceph',
+      namespace: 'rook-ceph',
+      managedFields: [
+        {
+          manager: 'k4all-operator-seed',
+          operation: 'Update',
+          fieldsType: 'FieldsV1',
+          fieldsV1: { 'f:spec': { '.': {}, 'f:mon': { '.': {}, 'f:count': {} }, 'f:mgr': { '.': {}, 'f:count': {} } } },
+        },
+        {
+          manager: 'k4all-operator',
+          operation: 'Apply',
+          fieldsType: 'FieldsV1',
+          fieldsV1: { 'f:spec': { 'f:cephVersion': { 'f:image': {} }, ...(monitoring ?? {}) } },
+        },
+        ...(opts.labelsBy
+          ? [{ manager: opts.labelsBy, operation: 'Update', fieldsType: 'FieldsV1', fieldsV1: { 'f:spec': { 'f:labels': { '.': {}, 'f:monitoring': { '.': {}, 'f:release': {} } } } } }]
+          : []),
+      ],
+    },
+    spec: { cephVersion: { image: 'quay.io/ceph/ceph:v20.2.4' }, mon: { count: 1 }, mgr: { count: 1 }, monitoring: { enabled: true }, labels: { monitoring: labels } },
+  };
+}
+
+const APPLIED = { 'f:monitoring': { 'f:enabled': {} }, 'f:labels': { 'f:monitoring': { 'f:release': {} } } };
+
+describe('Rook monitoring fields (k4all v2.7.2)', () => {
+  it('are k4all’s while its operator applies them', () => {
+    const cc = ccMonitoring(APPLIED);
+    expect(k4allOwnedFields(cc, MONITORING_FIELDS)).toEqual(['spec.monitoring.enabled', 'spec.labels.monitoring']);
+    expect(fieldManagers(cc, 'spec.labels.monitoring')).toEqual(['k4all-operator']);
+    expect(cephMonitoring(cc)).toEqual({ enabled: true, labels: [['release', 'kube-prometheus-stack']] });
+  });
+
+  it('cover an applied empty label map, but an empty labels struct owns no child', () => {
+    expect(k4allOwnedFields(ccMonitoring({ 'f:monitoring': { 'f:enabled': {} }, 'f:labels': { 'f:monitoring': {} } }, { labels: {} }), MONITORING_FIELDS)).toEqual(MONITORING_FIELDS);
+    expect(k4allOwnedFields(ccMonitoring({ 'f:monitoring': { 'f:enabled': {} }, 'f:labels': {} }), MONITORING_FIELDS)).toEqual(['spec.monitoring.enabled']);
+  });
+
+  it('are nobody’s once k4all turned monitoring off', () => {
+    expect(k4allOwnedFields(ccMonitoring(null), MONITORING_FIELDS)).toEqual([]);
+  });
+
+  it('are not k4all’s when only the seed or an admin wrote them', () => {
+    const cc = ccMonitoring(null, { labelsBy: 'k4all-operator-seed' });
+    expect(fieldManagers(cc, 'spec.labels.monitoring')).toEqual(['k4all-operator-seed']);
+    expect(k4allOwnedFields(cc, MONITORING_FIELDS)).toEqual([]);
+    expect(k4allOwnedFields(ccMonitoring(null, { labelsBy: 'kubectl-edit' }), MONITORING_FIELDS)).toEqual([]);
+  });
+
+  it('are Cairn’s on a cluster without k4all', () => {
+    for (const p of MONITORING_FIELDS) expect(k4allOwns(ccMonitoring(APPLIED), p, false)).toBe(false);
+  });
+
+  it('read as off without spec.monitoring, and labels only from a map', () => {
+    expect(cephMonitoring({ metadata: { name: 'x' }, spec: {} })).toEqual({ enabled: false, labels: [] });
+    expect(cephMonitoring({ metadata: { name: 'x' }, spec: { labels: { monitoring: ['x'] } } })).toEqual({ enabled: false, labels: [] });
+    expect(cephMonitoring(null)).toEqual({ enabled: false, labels: [] });
   });
 });

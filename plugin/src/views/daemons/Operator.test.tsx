@@ -120,3 +120,67 @@ describe('the Ceph image of the CephCluster', () => {
     expect(state.gets).toEqual([]);
   });
 });
+
+/** The CephCluster with Rook monitoring on, its two fields written by `by` (k4all v2.7.2 applies them as k4all-operator). */
+function withMonitoring(by: string): Obj {
+  const o = cephCluster('kubectl-patch');
+  o.spec.monitoring = { enabled: true };
+  o.spec.labels = { monitoring: { release: 'kube-prometheus-stack' } };
+  o.metadata.managedFields!.push({
+    manager: by,
+    operation: by === 'k4all-operator' ? 'Apply' : 'Update',
+    fieldsType: 'FieldsV1',
+    fieldsV1: { 'f:spec': { 'f:monitoring': { 'f:enabled': {} }, 'f:labels': { 'f:monitoring': { 'f:release': {} } } } },
+  });
+  return o;
+}
+
+function serveMonitoring(by: string) {
+  state.got = withMonitoring(by);
+  state.cc = listed(state.got);
+}
+
+describe('the Monitoring row', () => {
+  beforeEach(() => {
+    state.k4all = true;
+    state.gets = [];
+  });
+
+  it('shows Rook monitoring and its labels', async () => {
+    serveMonitoring('kubectl-edit');
+    await page();
+    expect(screen.getByText('Monitoring')).toBeTruthy();
+    expect(screen.getByText('On: Rook creates ServiceMonitors for the managers and ceph-exporter')).toBeTruthy();
+    expect(screen.getByText('release=kube-prometheus-stack')).toBeTruthy();
+  });
+
+  it('is locked while k4all-operator applies the fields, with the addon’s storage page', async () => {
+    serveMonitoring('k4all-operator');
+    await page();
+    expect(screen.getByText(K4ALL_MANAGED)).toBeTruthy();
+    expect(screen.getByText('spec.monitoring.enabled, spec.labels.monitoring')).toBeTruthy();
+    expect(screen.getByText('Open the k4all addon').getAttribute('href')).toBe('/c/main/k4all/settings/storage');
+  });
+
+  it('is not locked when an admin or the seed wrote them, or once k4all turned monitoring off', async () => {
+    serveMonitoring('kubectl-edit');
+    await page();
+    expect(screen.queryByText(K4ALL_MANAGED)).toBeNull();
+    serveMonitoring('k4all-operator-seed');
+    await page();
+    expect(screen.queryByText(K4ALL_MANAGED)).toBeNull();
+    // Off in k4all: its apply no longer names the fields; what is left is not k4all's.
+    serve('kubectl-patch');
+    await page();
+    expect(screen.queryByText(K4ALL_MANAGED)).toBeNull();
+    expect(screen.getByText('Off')).toBeTruthy();
+  });
+
+  it('is not locked when k4all does not run the cluster', async () => {
+    serveMonitoring('k4all-operator');
+    state.k4all = false;
+    await page();
+    expect(screen.queryByText(K4ALL_MANAGED)).toBeNull();
+    expect(screen.getByText('release=kube-prometheus-stack')).toBeTruthy();
+  });
+});

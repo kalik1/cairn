@@ -2,9 +2,10 @@
  * The Rook operator and what it says about the CephCluster: deployment,
  * pod and version; phase, message, conditions, generation; the Kubernetes
  * events of the Rook namespace, warnings first. On k4all the Ceph image is
- * k4all's (it moves with the Rook release k4all pins), shown read-only;
- * who owns it comes from a GET of the CephCluster, as Headlamp's lists drop
- * managedFields (api/managedFields.ts).
+ * k4all's (it moves with the Rook release k4all pins), and so are Rook's
+ * monitoring fields while k4all's monitoring feature is on (k4all v2.7.2):
+ * shown read-only. Who owns them comes from a GET of the CephCluster, as
+ * Headlamp's lists drop managedFields (api/managedFields.ts).
  */
 
 import Box from '@mui/material/Box';
@@ -13,8 +14,8 @@ import { pathOf } from '../../api/apply';
 import { useK4all } from '../../api/k4all';
 import { useKube } from '../../api/kube';
 import { useManagedFields } from '../../api/managedFields';
-import { ClusterCondition, clusterState, crashCollectorDisabled } from '../../model/clusterSpec';
-import { k4allOwns } from '../../model/ownership';
+import { cephMonitoring, ClusterCondition, clusterState, crashCollectorDisabled, MONITORING_FIELDS } from '../../model/clusterSpec';
+import { k4allOwnedFields, k4allOwns } from '../../model/ownership';
 import { Obj } from '../../model/types';
 import { Column, DataTable } from '../../ui/DataTable';
 import { Action, Empty, KV, Mono, Notice, Panel, When } from '../../ui/kit';
@@ -34,6 +35,8 @@ export function Operator() {
   const k4all = useK4all();
   const got = useManagedFields(cc, cc ? pathOf(cc) : null, k4all);
   const k4allImage = k4allOwns(got, 'spec.cephVersion.image', k4all);
+  const k4allMonitoring = k4all ? k4allOwnedFields(got, MONITORING_FIELDS) : [];
+  const monitoring = cephMonitoring(cc);
   const d = op.deployment;
   const pod = op.pods.find(p => podState(p).tone === 'ok') ?? op.pods[0];
   const img = pod ? podImage(pod) : d ? { image: d.spec?.template?.spec?.containers?.[0]?.image ?? '', tag: '' } : null;
@@ -148,6 +151,18 @@ export function Operator() {
                     </span>,
                   ],
                   ['Crash collector', crashCollectorDisabled(cc) ? 'Off (spec.crashCollector.disable)' : 'On'],
+                  [
+                    'Monitoring',
+                    <Box key="m">
+                      {monitoring.enabled ? 'On: Rook creates ServiceMonitors for the managers and ceph-exporter' : 'Off'}
+                      {monitoring.labels.length > 0 && (
+                        <Box sx={{ mt: 0.5 }}>
+                          Labels on them: <Mono>{monitoring.labels.map(([k, v]) => `${k}=${v}`).join(', ')}</Mono>
+                        </Box>
+                      )}
+                      {k4allMonitoring.length > 0 && <K4allManaged fields={k4allMonitoring} page="storage" sx={{ mt: 1 }} />}
+                    </Box>,
+                  ],
                   ['Data directory', <Mono key="dd">{cc.spec?.dataDirHostPath ?? '—'}</Mono>],
                   ['Last health check', <When key="h" at={cc.status?.ceph?.lastChecked} />],
                 ]}

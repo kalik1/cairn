@@ -9,6 +9,7 @@ import {
   detectDriver,
   freeName,
   fsDataPools,
+  K4ALL_CEPHFS_OFF,
   nameProblem,
   parseQuantity,
   presetAvailability,
@@ -256,6 +257,41 @@ describe('wizard', () => {
     expect(r.ok).toBe(false);
     expect(r.reason).toMatch(/CephFS CSI driver is not deployed/);
     expect(presetAvailability(ctx({ blockPools: [] }), 'vm').ok).toBe(false);
+  });
+
+  describe('the CephFS driver on k4all (v2.7.2 runs it only while CephFS is on)', () => {
+    const CEPHFS_DRIVER = { metadata: { name: 'rook-ceph.cephfs.csi.ceph.com', namespace: 'rook-ceph' } };
+    const RBD_DRIVER = { metadata: { name: 'rook-ceph.rbd.csi.ceph.com', namespace: 'rook-ceph' } };
+    // CephFS turned off in k4all: the seeded filesystem, its class and even a CSIDriver may remain.
+    const leftovers = {
+      filesystems: [{ metadata: { name: 'cephfs' } }],
+      storageClasses: [SAMPLE_SC, { metadata: { name: 'ceph-cephfs' }, provisioner: 'rook-ceph.cephfs.csi.ceph.com', parameters: { clusterID: 'rook-ceph', fsName: 'cephfs' } }],
+      csiDrivers: [{ metadata: { name: 'rook-ceph.cephfs.csi.ceph.com' } }],
+      drivers: [RBD_DRIVER],
+    };
+
+    it('says to turn CephFS on in the k4all addon when the Driver is missing', () => {
+      expect(presetAvailability(ctx({ ...leftovers, k4all: true, driversKnown: true }), 'shared')).toEqual({ ok: false, reason: K4ALL_CEPHFS_OFF, k4allAddon: true });
+      // Before the filesystem too: the addon creates both.
+      expect(presetAvailability(ctx({ k4all: true, driversKnown: true }), 'shared')).toMatchObject({ ok: false, k4allAddon: true });
+      // The other presets do not depend on it.
+      expect(presetAvailability(ctx({ ...leftovers, k4all: true, driversKnown: true }), 'vm').ok).toBe(true);
+    });
+
+    it('offers the class once the Driver runs', () => {
+      expect(presetAvailability(ctx({ ...leftovers, drivers: [RBD_DRIVER, CEPHFS_DRIVER], k4all: true, driversKnown: true }), 'shared')).toEqual({ ok: true });
+    });
+
+    it('keeps the checks of any cluster when the Driver list could not be read', () => {
+      expect(presetAvailability(ctx({ ...leftovers, k4all: true, driversKnown: false }), 'shared').ok).toBe(true);
+    });
+
+    it('changes nothing elsewhere: a CSIDriver or a class of the driver is enough there', () => {
+      expect(presetAvailability(ctx({ ...leftovers, k4all: false, driversKnown: true }), 'shared').ok).toBe(true);
+      const r = presetAvailability(ctx({ filesystems: leftovers.filesystems, drivers: [RBD_DRIVER], driversKnown: true }), 'shared');
+      expect(r).toMatchObject({ ok: false, reason: expect.stringMatching(/CephFS CSI driver is not deployed/) });
+      expect(r.k4allAddon).toBeUndefined();
+    });
   });
 
   it('validates names, features and duplicates', () => {
