@@ -17,6 +17,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import Link from '@mui/material/Link';
 import MenuItem from '@mui/material/MenuItem';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
@@ -24,6 +25,7 @@ import Switch from '@mui/material/Switch';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import React from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import { createClassFlow } from '../../api/k8sOps';
 import {
   buildSnapshotClass,
@@ -148,6 +150,7 @@ function pickVisible(e: Record<string, string>, f: ClassForm): Record<string, st
 
 function PresetStep({ ctx, onChoose }: { ctx: WizardContext; onChoose: (id: PresetId) => void }) {
   const t = useTokens();
+  const toAddon = PRESETS.some(p => presetAvailability(ctx, p.id).k4allAddon);
   return (
     <>
       <Typography sx={{ fontSize: 14, color: t.muted }}>What will the volumes of this class hold? The preset fills the rest; you can change it.</Typography>
@@ -199,6 +202,14 @@ function PresetStep({ ctx, onChoose }: { ctx: WizardContext; onChoose: (id: Pres
           );
         })}
       </Box>
+      {toAddon && ctx.k4allAddonUrl && (
+        <Typography sx={{ fontSize: 13 }}>
+          <Link component={RouterLink} to={ctx.k4allAddonUrl} underline="hover">
+            Open the k4all addon
+          </Link>{' '}
+          to turn CephFS on.
+        </Typography>
+      )}
     </>
   );
 }

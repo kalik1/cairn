@@ -8,7 +8,9 @@
  * a field comes from a GET of the CephCluster, never from the listed copy:
  * Headlamp's lists drop managedFields (api/managedFields.ts). Today
  * k4all creates the CephCluster once (field manager k4all-operator-seed) and
- * owns only its Ceph image; the checks stay for the fields it may own later.
+ * owns its Ceph image (and, from v2.7.2, Rook's monitoring fields while its
+ * monitoring is on: Operator.tsx); the checks stay for the fields it may own
+ * later.
  */
 
 import Box from '@mui/material/Box';
@@ -49,12 +51,14 @@ import { useTokens } from '../../ui/useTokens';
 import { fresh, headlampUrl, Hint, useClusterEditReason } from '../overview/common';
 
 /**
- * The k4all addon's storage settings (/k4all/settings/storage), when the
- * k4all plugin is loaded: its settings route plus the page.
+ * A page of the k4all addon's settings (/k4all/settings/<page>), when the
+ * k4all plugin is loaded: its settings route plus the page. "storage" holds
+ * what k4all owns of Rook (the Ceph image, monitoring, CephFS, the CSI image
+ * variant).
  */
-export function k4allStorageUrl(): string | null {
+export function k4allAddonUrl(page = 'storage'): string | null {
   const base = headlampUrl('k4all-settings', {});
-  return base && base !== '/' ? `${base.replace(/\/$/, '')}/storage` : null;
+  return base && base !== '/' ? `${base.replace(/\/$/, '')}/${page}` : null;
 }
 
 /** Of these CephCluster fields, the ones k4all owns now, from a GET of it (none when k4all does not run the cluster). */
@@ -77,9 +81,9 @@ async function k4allRefusal(now: Obj, paths: string[]): Promise<string | null> {
   return k4allOwnedFields(now, paths).length ? K4ALL_MANAGED : null;
 }
 
-/** Read-only note for fields the k4all operator owns, with a link to its addon. */
-export function K4allManaged({ fields, sx }: { fields: string[]; sx?: object }) {
-  const url = k4allStorageUrl();
+/** Read-only note for fields the k4all operator owns, with a link to the addon page (`page`) that holds their setting. */
+export function K4allManaged({ fields, sx, page = 'storage' }: { fields: string[]; sx?: object; page?: string }) {
+  const url = k4allAddonUrl(page);
   return (
     <Notice tone="idle" icon="mdi:lock-outline" sx={sx} title={K4ALL_MANAGED}>
       The k4all operator applies <Mono>{fields.join(', ')}</Mono> to this CephCluster and would put its own value back after a change made here.{' '}

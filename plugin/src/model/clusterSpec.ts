@@ -236,6 +236,20 @@ export function crashCollectorDisabled(cc: Obj | null | undefined): boolean {
   return !!cc?.spec?.crashCollector?.disable;
 }
 
+/**
+ * The CephCluster fields of Rook's Prometheus monitoring. k4all v2.7.2 and
+ * later apply both (field manager k4all-operator) while its Rook
+ * monitoring feature is on, and remove them when it is turned off.
+ */
+export const MONITORING_FIELDS = ['spec.monitoring.enabled', 'spec.labels.monitoring'];
+
+/** Rook's Prometheus monitoring: ServiceMonitors for the mgr and ceph-exporter, and the labels on them. */
+export function cephMonitoring(cc: Obj | null | undefined): { enabled: boolean; labels: [string, string][] } {
+  const raw = cc?.spec?.labels?.monitoring;
+  const labels = raw && typeof raw === 'object' && !Array.isArray(raw) ? Object.entries(raw).map(([k, v]): [string, string] => [k, String(v)]) : [];
+  return { enabled: cc?.spec?.monitoring?.enabled === true, labels };
+}
+
 export interface ClusterCondition {
   type: string;
   status: string;

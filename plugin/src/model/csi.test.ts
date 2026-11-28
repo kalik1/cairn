@@ -1,4 +1,4 @@
-import { csiDrivers, csiOperator, driverWorkloads, imagesOf, nodeCoverage, podHealth, rollout, versionOf } from './csi';
+import { csiDrivers, csiOperator, driverImageSet, driverWorkloads, imagesOf, nodeCoverage, podHealth, rollout, versionOf } from './csi';
 import { Obj } from './types';
 
 const DRIVER = 'rook-ceph.rbd.csi.ceph.com';
@@ -123,5 +123,27 @@ describe('CSI drivers', () => {
   it('finds the ceph-csi operator', () => {
     expect(csiOperator([ctrl, { metadata: { name: 'ceph-csi-controller-manager' } }])?.metadata.name).toBe('ceph-csi-controller-manager');
     expect(csiOperator([ctrl])).toBeUndefined();
+  });
+});
+
+describe('a Driver’s image set', () => {
+  const driver = (imageSet?: unknown): Obj => ({
+    apiVersion: 'csi.ceph.io/v1',
+    kind: 'Driver',
+    metadata: { name: 'rook-ceph.rbd.csi.ceph.com', namespace: 'rook-ceph' },
+    spec: { fsGroupPolicy: 'File', ...(imageSet === undefined ? {} : { imageSet }) },
+  });
+
+  it('is none without spec.imageSet (the OperatorConfig’s set applies)', () => {
+    expect(driverImageSet(driver(), true)).toBeNull();
+    expect(driverImageSet(driver({}), true)).toBeNull();
+    expect(driverImageSet(undefined, true)).toBeNull();
+  });
+
+  it('is k4all’s only for a k4all-cephcsi- ConfigMap on a k4all cluster', () => {
+    expect(driverImageSet(driver({ name: 'k4all-cephcsi-v3.18.2-rocky9' }), true)).toEqual({ name: 'k4all-cephcsi-v3.18.2-rocky9', k4all: true });
+    expect(driverImageSet(driver({ name: 'k4all-cephcsi-v3.18.2-rocky9' }), false)).toEqual({ name: 'k4all-cephcsi-v3.18.2-rocky9', k4all: false });
+    expect(driverImageSet(driver({ name: 'my-cephcsi-images' }), true)).toEqual({ name: 'my-cephcsi-images', k4all: false });
+    expect(driverImageSet(driver({ name: 'rook-csi-operator-image-set-configmap' }), true)).toEqual({ name: 'rook-csi-operator-image-set-configmap', k4all: false });
   });
 });

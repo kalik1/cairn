@@ -9,6 +9,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import React from 'react';
 import { useCeph } from '../../api/ceph';
+import { useK4all } from '../../api/k4all';
 import { deleteClass, deleteSnapshotClass, itemsOf, pvList, useKGet } from '../../api/k8sOps';
 import { useKube } from '../../api/kube';
 import { useCan } from '../../api/permissions';
@@ -33,6 +34,7 @@ import { Column, DataTable } from '../../ui/DataTable';
 import { Action, Band, Empty, Figure, IconAction, KV, Mono, Notice, Panel, Tag } from '../../ui/kit';
 import { tabular } from '../../ui/tokens';
 import { useTokens } from '../../ui/useTokens';
+import { k4allAddonUrl } from '../daemons/counts';
 import { runClassWizard } from './ClassWizard';
 import { CLink, yesNo } from './parts';
 
@@ -41,6 +43,7 @@ const STRATA = ['#8FA3AE', '#62788A', '#B5C3CA', '#4F6574', '#A1B2BC', '#788D9A'
 export function ClassesTab() {
   const kube = useKube();
   const ceph = useCeph();
+  const k4all = useK4all();
   const t = useTokens();
   const csiObjs = useKGet('/apis/storage.k8s.io/v1/csidrivers', 60000);
   // Both lists are watched: a class created or deleted, here or elsewhere, shows at once.
@@ -60,6 +63,9 @@ export function ClassesTab() {
     storageClasses: scs,
     snapshotClasses: vscs,
     drivers: kube.csiDrivers.items,
+    driversKnown: kube.csiDrivers.loaded && !kube.csiDrivers.error,
+    k4all,
+    k4allAddonUrl: k4all ? k4allAddonUrl('storage') : null,
     csiDrivers: itemsOf(csiObjs),
     filesystems: kube.filesystems.items,
     blockPools: kube.blockPools.items,

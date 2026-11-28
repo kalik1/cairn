@@ -211,6 +211,21 @@ export function rollout(w: Obj | undefined): { ready: number; want: number; upda
 }
 
 /** The ceph-csi operator (ceph-csi-controller-manager), when deployed. */
+/** The prefix of the image-set ConfigMaps k4all writes for its cephcsi build (k4all-cephcsi-<tag>). */
+export const K4ALL_IMAGE_SET_PREFIX = 'k4all-cephcsi-';
+
+/**
+ * The image set (a ConfigMap in the Driver's namespace) a ceph-csi Driver
+ * names in spec.imageSet: it wins key by key over the OperatorConfig's set.
+ * `k4all`: on a k4all cluster, k4all chose it (its CSI image variant for the
+ * nodes' CPUs, from its ceph-csi-drivers values).
+ */
+export function driverImageSet(driver: Obj | undefined, k4all: boolean): { name: string; k4all: boolean } | null {
+  const name = driver?.spec?.imageSet?.name;
+  if (typeof name !== 'string' || !name) return null;
+  return { name, k4all: k4all && name.startsWith(K4ALL_IMAGE_SET_PREFIX) };
+}
+
 export function csiOperator(deployments: Obj[]): Obj | undefined {
   return (
     deployments.find(d => d.metadata.name === 'ceph-csi-controller-manager') ??

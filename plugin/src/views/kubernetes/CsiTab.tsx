@@ -3,15 +3,32 @@
  * node plugin of each node), every driver with its ceph-csi Driver spec, its
  * controller plugin and node plugin and their images, the pods per node with
  * readiness and restarts, and the ceph-csi operator with its
- * CephConnections and ClientProfiles.
+ * CephConnections and ClientProfiles. On k4all (v2.7.2 and later) a
+ * Driver's image set may be k4all's choice of cephcsi build for the nodes'
+ * CPUs: marked as such, display only.
  */
 
 import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
 import React from 'react';
+import { Link as RouterLink } from 'react-router-dom';
+import { useK4all } from '../../api/k4all';
 import { itemsOf, useKGets } from '../../api/k8sOps';
 import { useKube } from '../../api/kube';
-import { CsiDriverInfo, csiDrivers, csiOperator, DRIVER_WORDS, driverWorkloads, imagesOf, NodeCoverage, nodeCoverage, podHealth, rollout } from '../../model/csi';
+import {
+  CsiDriverInfo,
+  csiDrivers,
+  csiOperator,
+  DRIVER_WORDS,
+  driverImageSet,
+  driverWorkloads,
+  imagesOf,
+  NodeCoverage,
+  nodeCoverage,
+  podHealth,
+  rollout,
+} from '../../model/csi';
 import { duration, plural } from '../../model/format';
 import { Obj } from '../../model/types';
 import { Loading } from '../../shell/Gate';
@@ -20,12 +37,14 @@ import { Band, Empty, KV, Mono, Notice, Panel, Tag } from '../../ui/kit';
 import { Mark, StateLabel } from '../../ui/Mark';
 import { tabular } from '../../ui/tokens';
 import { useTokens } from '../../ui/useTokens';
+import { k4allAddonUrl } from '../daemons/counts';
 import { Pre, yesNo } from './parts';
 
 const age = (ts?: string) => (ts ? duration((Date.now() - Date.parse(ts)) / 1000) : '—');
 
 export function CsiTab() {
   const kube = useKube();
+  const k4all = useK4all();
   const ns = kube.ns;
   const base = '/apis/csi.ceph.io/v1';
   const paths = [
@@ -52,6 +71,7 @@ export function CsiTab() {
   const work = drivers.map(d => ({ d, w: driverWorkloads(d, deployments, daemonSets, pods) }));
   const cover = work.map(({ d, w }) => ({ d, cov: nodeCoverage(kube.nodes.items, w.node, w.nodePods, d.name, csiNodes) }));
   const op = csiOperator(deployments);
+  const defaultImageSet: string | undefined = itemsOf(g(paths[4]))[0]?.spec?.driverSpecDefaults?.imageSet?.name;
 
   return (
     <>
@@ -65,7 +85,7 @@ export function CsiTab() {
         </Panel>
       )}
       {work.map(({ d, w }, i) => (
-        <DriverPanel key={d.name} d={d} w={w} cov={cover[i].cov} csiNodesKnown={!!csiNodes} />
+        <DriverPanel key={d.name} d={d} w={w} cov={cover[i].cov} csiNodesKnown={!!csiNodes} k4all={k4all} defaultImageSet={defaultImageSet} />
       ))}
       <OperatorPanel op={op} pods={pods} cephConnections={itemsOf(g(paths[2]))} clientProfiles={itemsOf(g(paths[3]))} operatorConfigs={itemsOf(g(paths[4]))} crdMissing={g(paths[2]).missing} />
     </>
@@ -168,7 +188,46 @@ function Images({ w }: { w: Obj | undefined }) {
   );
 }
 
-function DriverPanel({ d, w, cov, csiNodesKnown }: { d: CsiDriverInfo; w: ReturnType<typeof driverWorkloads>; cov: NodeCoverage[]; csiNodesKnown: boolean }) {
+/** A Driver's image set: its own (k4all's mark when k4all chose it), else the OperatorConfig's. */
+export function ImageSet({ driver, k4all, defaultImageSet }: { driver: Obj | undefined; k4all: boolean; defaultImageSet?: string }) {
+  const t = useTokens();
+  const set = driverImageSet(driver, k4all);
+  if (!set) return <>{defaultImageSet ? <>The OperatorConfig’s, <Mono>{defaultImageSet}</Mono></> : 'Built in'}</>;
+  const url = set.k4all ? k4allAddonUrl('storage') : null;
+  return (
+    <Box>
+      <Mono>{set.name}</Mono>
+      {set.k4all && (
+        <Box sx={{ fontSize: 12.5, color: t.muted, mt: 0.25 }}>
+          Chosen by k4all (CSI image variant): the cephcsi build for the nodes’ CPUs.{' '}
+          {url ? (
+            <Link component={RouterLink} to={url} underline="hover">
+              Open the k4all addon
+            </Link>
+          ) : (
+            'See the k4all addon.'
+          )}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+function DriverPanel({
+  d,
+  w,
+  cov,
+  csiNodesKnown,
+  k4all,
+  defaultImageSet,
+}: {
+  d: CsiDriverInfo;
+  w: ReturnType<typeof driverWorkloads>;
+  cov: NodeCoverage[];
+  csiNodesKnown: boolean;
+  k4all: boolean;
+  defaultImageSet?: string;
+}) {
   const t = useTokens();
   const spec = d.cr?.spec ?? {};
   const status = d.cr?.status;
@@ -226,6 +285,7 @@ function DriverPanel({ d, w, cov, csiNodesKnown }: { d: CsiDriverInfo; w: Return
                 ['Attach required', yesNo(spec.attachRequired ?? k.attachRequired)],
                 ['fsGroup policy', spec.fsGroupPolicy ?? k.fsGroupPolicy ?? '—'],
                 d.kind === 'cephfs' && ['Client', spec.cephFsClientType ?? 'kernel'],
+                ['Image set', <ImageSet key="is" driver={d.cr} k4all={k4all} defaultImageSet={defaultImageSet} />],
                 ['Controller replicas', spec.controllerPlugin?.replicas ?? '—'],
                 ['Log verbosity', spec.log?.verbosity ?? '—'],
                 ['Log rotation', spec.log?.rotation ? `${spec.log.rotation.periodicity ?? ''}, ${spec.log.rotation.maxFiles ?? '?'} files of ${spec.log.rotation.maxLogSize ?? '?'}` : '—'],

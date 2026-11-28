@@ -297,6 +297,12 @@ export interface WizardContext {
   snapshotClasses: Obj[];
   /** ceph-csi operator Driver CRs (csi.ceph.io). */
   drivers: Obj[];
+  /** The Driver list was read (no error): an empty one means no Driver. */
+  driversKnown?: boolean;
+  /** k4all runs the cluster: it deploys the CephFS driver only while CephFS is on in its addon. */
+  k4all?: boolean;
+  /** The k4all addon's Storage page, when its plugin is loaded. */
+  k4allAddonUrl?: string | null;
   /** Kubernetes CSIDriver objects (storage.k8s.io), when readable. */
   csiDrivers?: Obj[];
   filesystems: Obj[];
@@ -381,10 +387,21 @@ export function presetById(id: PresetId): Preset {
   return PRESETS.find(p => p.id === id) ?? PRESETS[0];
 }
 
-/** Whether a preset can be used on this cluster, and why not. */
-export function presetAvailability(ctx: WizardContext, id: PresetId): { ok: boolean; reason?: string } {
+/** Why CephFS classes cannot provision on k4all now: its addon has CephFS off. */
+export const K4ALL_CEPHFS_OFF =
+  'k4all runs the CephFS CSI driver only while CephFS is on: turn CephFS on in the k4all addon (Storage), then come back for the class. A class made now would never provision.';
+
+/**
+ * Whether a preset can be used on this cluster, and why not. `k4allAddon`:
+ * the way out is in the k4all addon.
+ */
+export function presetAvailability(ctx: WizardContext, id: PresetId): { ok: boolean; reason?: string; k4allAddon?: boolean } {
   const p = presetById(id);
   if (p.kind === 'cephfs') {
+    // k4all v2.7.2 and later remove the ceph-csi Driver of CephFS while CephFS
+    // is off (no filesystem wanted, no CephFS volume left), even where a
+    // CephFilesystem, its CSIDriver or a class of it remain.
+    if (ctx.k4all && ctx.driversKnown && detectDriver(ctx, 'cephfs').source !== 'driver') return { ok: false, reason: K4ALL_CEPHFS_OFF, k4allAddon: true };
     if (!ctx.filesystems.length)
       return { ok: false, reason: 'There is no CephFilesystem. Create one under File first, then come back for the class.' };
     const d = detectDriver(ctx, 'cephfs');

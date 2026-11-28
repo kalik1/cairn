@@ -77,10 +77,19 @@ operator would put its own value back at its next apply. On k4all v2.7.0
 that is the Ceph image (`spec.cephVersion.image`, which follows the Rook
 release k4all pins); the CephCluster k4all creates once (field manager
 `k4all-operator-seed`) is otherwise Cairn's, and the same check covers the
-manager count, the monitor count and the mgr module list. Fields written by
-anyone else (kubectl, Rook, Headlamp, Cairn) stay editable, and on clusters
+manager count, the monitor count and the mgr module list. From k4all v2.7.2
+the k4all operator also owns Rook's monitoring fields (`spec.monitoring.enabled`,
+`spec.labels.monitoring`) while its Rook monitoring is on: Daemons → Rook
+operator shows them locked. Fields written by anyone else (kubectl, Rook,
+Headlamp, Cairn, k4all's one-time seeds) stay editable, and on clusters
 without k4all (its API group `k4all.magesgate.com` is not served)
 everything is.
+
+Two other k4all v2.7.2 choices show where they matter. The CSI tab marks a
+Driver's image set named `k4all-cephcsi-…` as k4all's CSI image variant
+(the cephcsi build for the nodes' CPUs). k4all runs the CephFS CSI driver
+only while CephFS is on in its addon, so without that driver the class
+wizard's shared filesystem preset says to turn CephFS on there.
 
 Cairn runs Ceph commands in the Rook toolbox (`app=rook-ceph-tools`) when it
 runs, else in the Rook operator pod (Configuration → Cairn lets you pick).
